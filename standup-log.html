@@ -1,0 +1,2155 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Standup">
+<meta name="theme-color" content="#FFFFFF">
+<title>Standup Log</title>
+<style>
+  :root{
+    --ink:#131A22;
+    --ink-2:#33414F;
+    --muted:#6B7C8C;
+    --paper:#E8ECF0;
+    --card:#FFFFFF;
+    --rule:#CFD8E0;
+    --rule-soft:#E3E9EE;
+    --pine:#2F6F6B;
+    --pine-dark:#215350;
+    --pine-tint:#E4EFEE;
+    --flag:#BE3F29;
+    --flag-tint:#FBE9E5;
+    --amber:#B0761B;
+    --amber-tint:#FBF0DD;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Thai", "Sarabun", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0}
+  .app{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    min-height:100vh;
+    padding:0 0 64px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    border-bottom:1px solid var(--rule);
+    background:var(--card);
+    position:sticky;top:0;z-index:40;
+  }
+  .masthead .wrap{display:flex;align-items:center;gap:18px;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
+  .brand{display:flex;flex-direction:column;gap:3px;margin-right:auto}
+  .brand b{
+    font-family:var(--mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;
+  }
+  .brand span{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.08em}
+  .datefield{display:flex;align-items:center;gap:8px}
+  .datefield label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  input[type=date]{
+    font-family:var(--mono);font-size:13px;color:var(--ink);
+    border:1px solid var(--rule);border-radius:var(--r);padding:7px 9px;background:var(--card);
+  }
+  .savestate{font-family:var(--mono);font-size:11px;color:var(--muted);min-width:96px;text-align:right}
+  .savestate.on{color:var(--pine)}
+
+  /* ---------- tabs ---------- */
+  .tabs{background:var(--card);border-bottom:1px solid var(--rule)}
+  .tabs .wrap{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .tabs .wrap::-webkit-scrollbar{display:none}
+  .tab{
+    appearance:none;background:none;border:0;cursor:pointer;
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);padding:12px 14px;border-bottom:2px solid transparent;white-space:nowrap;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--pine)}
+
+  /* ---------- generic ---------- */
+  h2{font-family:var(--mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin:28px 0 12px;font-weight:600}
+  h3{font-size:17px;margin:0 0 4px;letter-spacing:-.01em}
+  p.lede{color:var(--ink-2);font-size:14px;line-height:1.55;margin:0 0 18px;max-width:62ch}
+  .btn{
+    appearance:none;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600;
+    border:1px solid var(--rule);background:var(--card);color:var(--ink);
+    padding:9px 14px;border-radius:var(--r);
+  }
+  .btn:hover{border-color:var(--ink-2)}
+  .btn.primary{background:var(--pine);border-color:var(--pine);color:#fff}
+  .btn.primary:hover{background:var(--pine-dark)}
+  .btn.quiet{border-color:transparent;color:var(--muted);padding:6px 8px}
+  .btn.quiet:hover{color:var(--flag)}
+  .btn:focus-visible,.tab:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,.chip:focus-visible,.roll-item:focus-visible{
+    outline:2px solid var(--pine);outline-offset:2px
+  }
+  textarea,input[type=text],select{
+    font-family:var(--sans);font-size:14px;color:var(--ink);width:100%;
+    border:1px solid var(--rule);border-radius:var(--r);padding:10px 12px;background:var(--card);line-height:1.5;
+  }
+  textarea{resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1;min-width:180px}
+  .note{font-size:12px;color:var(--muted);line-height:1.5}
+  .empty{
+    border:1px dashed var(--rule);border-radius:var(--r);padding:26px;text-align:center;color:var(--muted);font-size:14px;background:var(--card)
+  }
+
+  /* ---------- standup layout ---------- */
+  .standup{display:grid;grid-template-columns:280px 1fr;gap:26px;align-items:start;margin-top:24px}
+
+  /* roll call rail — the signature element */
+  .rail{
+    background:var(--card);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;position:sticky;top:112px;
+  }
+  .rail-head{padding:14px 16px 12px;border-bottom:1px solid var(--rule-soft)}
+  .rail-head b{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:block}
+  .rail-count{font-family:var(--mono);font-size:22px;margin-top:6px;letter-spacing:-.02em}
+  .rail-count i{font-style:normal;color:var(--muted);font-size:13px}
+  .meter{height:3px;background:var(--rule-soft);border-radius:2px;margin-top:10px;overflow:hidden}
+  .meter i{display:block;height:100%;background:var(--pine);transition:width .35s ease}
+  .roll{list-style:none;margin:0;padding:6px}
+  .roll-item{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:0;cursor:pointer;padding:9px 10px;border-radius:8px;font-family:var(--sans);
+  }
+  .roll-item:hover{background:var(--paper)}
+  .roll-item[aria-current=true]{background:var(--ink);color:#fff}
+  .roll-item[aria-current=true] .roll-meta{color:#9AACBB}
+  .roll-num{font-family:var(--mono);font-size:10px;color:var(--muted);width:16px;flex:none}
+  .roll-item[aria-current=true] .roll-num{color:#7E93A4}
+  .roll-name{font-size:14px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .roll-meta{font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;border:1.5px solid var(--rule);background:transparent;transition:background .2s}
+  .dot.done{background:var(--pine);border-color:var(--pine)}
+  .dot.flag{background:var(--flag);border-color:var(--flag)}
+  .dot.out{background:var(--rule);border-color:var(--rule)}
+
+  /* speaker card */
+  .speaker{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:22px}
+  .speaker-head{display:flex;align-items:flex-start;gap:14px;border-bottom:1px solid var(--rule-soft);padding-bottom:16px;margin-bottom:18px}
+  .mark{
+    width:44px;height:44px;border-radius:10px;flex:none;display:grid;place-items:center;
+    font-family:var(--mono);font-size:15px;font-weight:700;color:#fff;letter-spacing:-.02em;
+  }
+  .speaker-id{flex:1;min-width:0}
+  .speaker-id h3{font-size:20px}
+  .speaker-id .sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+  .field{margin-bottom:18px}
+  .field > label{
+    font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+    display:block;margin-bottom:7px
+  }
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{
+    appearance:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:600;
+    border:1px solid var(--rule);background:var(--card);color:var(--ink-2);
+    padding:6px 11px;border-radius:999px;
+  }
+  .chip:hover{border-color:var(--ink-2)}
+  .chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip.st-ok[aria-pressed=true]{background:var(--pine);border-color:var(--pine)}
+  .chip.st-help[aria-pressed=true]{background:var(--amber);border-color:var(--amber)}
+  .chip.st-block[aria-pressed=true]{background:var(--flag);border-color:var(--flag)}
+  .chip.st-out[aria-pressed=true]{background:var(--muted);border-color:var(--muted)}
+  .helpbox{background:var(--amber-tint);border:1px solid #EBDCC0;border-radius:var(--r);padding:14px;margin-bottom:18px}
+  .helpbox.blocked{background:var(--flag-tint);border-color:#F0D2CB}
+  .speaker-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--rule-soft);padding-top:16px;flex-wrap:wrap}
+
+  /* ---------- summary ---------- */
+  .digest{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:22px}
+  .line{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+  .line:last-child{border-bottom:0}
+  .line-name{font-family:var(--mono);font-size:12px;letter-spacing:.06em;width:120px;flex:none;padding-top:2px}
+  .line-body{flex:1;min-width:0}
+  .line-body ul{margin:0;padding-left:18px}
+  .line-body li{font-size:14px;line-height:1.6;margin-bottom:2px}
+  .tag{
+    font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    padding:3px 7px;border-radius:5px;background:var(--paper);color:var(--muted);white-space:nowrap
+  }
+  .tag.help{background:var(--amber-tint);color:var(--amber)}
+  .tag.block{background:var(--flag-tint);color:var(--flag)}
+  .tag.ok{background:var(--pine-tint);color:var(--pine-dark)}
+  .flow{display:flex;align-items:center;gap:8px;font-size:14px;padding:10px 0;border-bottom:1px solid var(--rule-soft);flex-wrap:wrap}
+  .flow:last-child{border-bottom:0}
+  .flow .arrow{font-family:var(--mono);color:var(--muted)}
+  .who{font-weight:600}
+
+  /* ---------- import ---------- */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:20px}
+  .parsed{display:flex;flex-direction:column;gap:10px;max-height:520px;overflow:auto}
+  .prow{border:1px solid var(--rule-soft);border-radius:8px;padding:12px;background:var(--card)}
+  .prow.ambig{border-color:var(--amber);background:var(--amber-tint)}
+  .prow.unknown{border-color:var(--rule);background:var(--paper)}
+  .prow-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .prow-top select{width:auto;flex:1;font-size:13px;padding:6px 8px}
+  .prow-raw{font-size:13px;color:var(--ink-2);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+  .warn{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber)}
+
+  /* ---------- people / team ---------- */
+  .people-grid{display:grid;grid-template-columns:240px 1fr;gap:26px;align-items:start}
+  .stat-row{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:20px}
+  .stat b{display:block;font-family:var(--mono);font-size:26px;letter-spacing:-.02em}
+  .stat span{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .daylog{border-left:2px solid var(--rule-soft);padding-left:16px;margin-left:4px}
+  .daylog-day{position:relative;padding-bottom:18px}
+  .daylog-day::before{content:"";position:absolute;left:-21px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--rule);border:2px solid var(--card)}
+  .daylog-day.has-flag::before{background:var(--flag)}
+  .daylog-date{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);margin-bottom:6px}
+  .member-row{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--rule-soft)}
+  .member-row:last-child{border-bottom:0}
+  .alias{font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-word}
+
+  .drop{border:1.5px dashed var(--rule);border-radius:var(--r);padding:22px;text-align:center;background:var(--paper);transition:border-color .15s,background .15s}
+  .drop.over{border-color:var(--pine);background:var(--pine-tint)}
+  .drop b{font-size:14px}
+  .member-row.former{opacity:.72}
+  .tprow{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--rule-soft)}
+  .tprow:last-child{border-bottom:0}
+  .tpnum{font-family:var(--mono);font-size:10px;color:var(--muted);flex:none}
+  .tptext{flex:1;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tprow select{width:auto;max-width:210px;flex:none;font-size:12.5px;padding:5px 8px;color:var(--muted)}
+  .tprow select.set{color:var(--ink);border-color:var(--pine)}
+  .ptag{font-family:var(--mono);font-size:10px;letter-spacing:.06em;background:var(--pine-tint);color:var(--pine-dark);padding:2px 6px;border-radius:4px;white-space:nowrap}
+  .qrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--rule-soft);font-size:13px}
+  .qrow:last-child{border-bottom:0}
+  .prow.newname{border-color:var(--amber);background:var(--amber-tint)}
+  .taskrow{padding:10px 0;border-bottom:1px solid var(--rule-soft)}
+  .taskrow:last-child{border-bottom:0}
+  .chips.small{gap:5px}
+  .chips.small .chip{padding:4px 9px;font-size:11.5px}
+
+  .rpt-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:var(--r);background:var(--card);padding-bottom:14px}
+  .rpt-table{width:100%;border-collapse:collapse;font-size:13px}
+  .rpt-table th,.rpt-table td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--rule-soft);white-space:nowrap}
+  .rpt-table th{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:right}
+  .rpt-table td:first-child,.rpt-table th:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+  .rpt-table tbody tr:hover td{background:var(--paper)}
+  .rpt-table tr.rpt-total td{font-weight:600;border-top:1.5px solid var(--rule);border-bottom:0}
+  .rpt-table td:empty::after{content:'–';color:var(--rule)}
+
+  .storagebar{background:var(--flag-tint);border-bottom:1px solid #F0D2CB;color:#7C2A1B;font-size:13px;line-height:1.5}
+  .storagebar .wrap{padding-top:10px;padding-bottom:10px}
+  .storagebar b{font-weight:700}
+  .storagebar.ok{background:var(--pine-tint);border-bottom-color:#CADEDC;color:var(--pine-dark)}
+
+  pre.md{
+    font-family:var(--mono);font-size:12px;line-height:1.6;background:var(--ink);color:#D7E2EA;
+    padding:18px;border-radius:var(--r);overflow:auto;max-height:460px;white-space:pre-wrap;margin:0
+  }
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);
+    background:var(--ink);color:#fff;font-size:13px;padding:11px 18px;border-radius:999px;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:90
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (max-width:900px){
+    .standup,.split,.people-grid{grid-template-columns:1fr}
+    .rail{position:static}
+    .roll{display:flex;overflow-x:auto;padding:8px}
+    .roll-item{flex:none;width:auto}
+    .roll-name{max-width:100px}
+    .line{flex-direction:column;gap:6px}
+    .line-name{width:auto}
+  }
+
+  /* ---------- phone ---------- */
+  @media (max-width:620px){
+    .wrap{padding:0 14px}
+    .app{padding-bottom:40px}
+    .masthead .wrap{gap:10px;padding-top:10px;padding-bottom:10px}
+    .brand b{font-size:12px;letter-spacing:.18em}
+    .brand span{font-size:10px}
+    .datefield label{display:none}
+    .savestate{min-width:0;font-size:10px}
+    .tab{padding:11px 12px;font-size:10px}
+
+    /* 16px stops iOS zooming the page when a field is focused */
+    textarea,input[type=text],input[type=date],select{font-size:16px}
+    .tprow select{font-size:15px}
+
+    h2{margin:22px 0 10px}
+    .speaker,.panel,.digest{padding:16px}
+    .speaker-head{gap:11px;padding-bottom:13px;margin-bottom:15px}
+    .speaker-id h3{font-size:18px}
+    .mark{width:38px;height:38px;font-size:13px}
+
+    /* roll call becomes a swipeable strip of names */
+    .rail-head{padding:11px 13px 9px}
+    .rail-count{font-size:18px}
+    .roll{gap:6px;padding:8px 10px}
+    .roll-item{padding:8px 11px;border:1px solid var(--rule-soft);border-radius:999px;gap:7px}
+    .roll-item[aria-current=true]{border-color:var(--ink)}
+    .roll-num{display:none}
+    .roll-name{max-width:none;font-size:13px}
+
+    /* comfortable tap targets */
+    .chip{padding:9px 13px;font-size:13px}
+    .btn{padding:11px 15px}
+    .speaker-foot{gap:12px}
+    .speaker-foot .row{width:100%}
+    .speaker-foot .btn.primary{flex:1}
+
+    /* task + project stacks instead of squeezing side by side */
+    .tprow{flex-wrap:wrap;gap:6px;padding:9px 0}
+    .tptext{flex-basis:100%;white-space:normal;overflow:visible}
+    .tprow select{max-width:none;width:100%;flex:1}
+
+    .qrow{flex-wrap:wrap;gap:6px}
+    .drop{padding:16px}
+    .stat-row{gap:18px}
+    .stat b{font-size:21px}
+    pre.md{font-size:11px;padding:14px}
+    .prow-top{flex-wrap:wrap}
+    .prow-top select{width:100%;flex-basis:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="app">
+  <header class="masthead">
+    <div class="wrap">
+      <div class="brand">
+        <b>Standup&nbsp;Log</b>
+        <span id="brandsub">08:00 · Innovation Team</span>
+      </div>
+      <div class="datefield">
+        <label for="thedate">Meeting date</label>
+        <input type="date" id="thedate">
+      </div>
+      <div class="savestate" id="savestate"></div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <div class="wrap" role="tablist" id="tabs">
+      <button class="tab" data-tab="standup" role="tab">Standup</button>
+      <button class="tab" data-tab="summary" role="tab">Summary</button>
+      <button class="tab" data-tab="import" role="tab">Import notes</button>
+      <button class="tab" data-tab="people" role="tab">People</button>
+      <button class="tab" data-tab="team" role="tab">Team</button>
+      <button class="tab" data-tab="projects" role="tab">Projects</button>
+      <button class="tab" data-tab="report" role="tab">Report</button>
+      <button class="tab" data-tab="sync" role="tab">Sync</button>
+    </div>
+  </nav>
+
+  <div id="storagebar" class="storagebar" hidden><div class="wrap" id="storagebar-text"></div></div>
+
+  <main class="wrap" id="view"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   Standup Log — daily standup capture for a 12-person team
+   Single file. Data persists via window.storage (per user).
+   ============================================================ */
+
+/* ---------- storage ----------
+   Four tiers, best available wins:
+   1. cloud         — Supabase, shared by every device and every signed-in person
+   2. window.storage — the Claude artifact store (per account)
+   3. localStorage  — this browser on this device
+   4. memory        — nothing survives a refresh; the app says so out loud
+   ------------------------------------------------------------ */
+const mem = new Map();
+const LS = (()=>{
+  try{ const k='__sl_probe'; localStorage.setItem(k,'1'); localStorage.removeItem(k); return localStorage; }
+  catch(e){ return null; }
+})();
+const CFG_KEY='cfg:cloud', SESS_KEY='cfg:session';
+function lsGet(k){ try{ const v=LS&&LS.getItem(k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function lsSet(k,v){ try{ if(LS){ v===null ? LS.removeItem(k) : LS.setItem(k,JSON.stringify(v)); } }catch(e){} }
+
+const cloud = {
+  cfg: null, session: null, lastError: '',
+  configured(){ return !!(this.cfg && this.cfg.url && this.cfg.key); },
+  ready(){ return this.configured() && !!(this.session && this.session.access_token); },
+  load(){ this.cfg = lsGet(CFG_KEY); this.session = lsGet(SESS_KEY); },
+  saveCfg(url, key){
+    this.cfg = {url:String(url||'').trim().replace(/\/+$/,''), key:String(key||'').trim()};
+    lsSet(CFG_KEY, this.cfg);
+  },
+  clear(){ this.cfg=null; this.session=null; lsSet(CFG_KEY,null); lsSet(SESS_KEY,null); },
+  setSession(j, email){
+    if(!j || !j.access_token) return false;
+    this.session = {access_token:j.access_token, refresh_token:j.refresh_token,
+      email:(j.user&&j.user.email)||email||'', at:Date.now()};
+    lsSet(SESS_KEY, this.session);
+    return true;
+  },
+  signOut(){ this.session=null; lsSet(SESS_KEY,null); },
+
+  async req(path, opts={}, retry=true){
+    const headers = Object.assign({'apikey':this.cfg.key,'Content-Type':'application/json'}, opts.headers||{});
+    if(this.session && this.session.access_token) headers['Authorization']='Bearer '+this.session.access_token;
+    const res = await fetch(this.cfg.url+path, Object.assign({}, opts, {headers}));
+    if(res.status===401 && retry && this.session && this.session.refresh_token){
+      if(await this.doRefresh()) return this.req(path, opts, false);
+      this.signOut();
+    }
+    return res;
+  },
+  async doRefresh(){
+    try{
+      const res = await fetch(this.cfg.url+'/auth/v1/token?grant_type=refresh_token', {
+        method:'POST', headers:{'apikey':this.cfg.key,'Content-Type':'application/json'},
+        body: JSON.stringify({refresh_token:this.session.refresh_token})
+      });
+      if(!res.ok) return false;
+      return this.setSession(await res.json(), this.session.email);
+    }catch(e){ return false; }
+  },
+  async signIn(email, password){
+    const res = await fetch(this.cfg.url+'/auth/v1/token?grant_type=password', {
+      method:'POST', headers:{'apikey':this.cfg.key,'Content-Type':'application/json'},
+      body: JSON.stringify({email, password})
+    });
+    const j = await res.json().catch(()=>({}));
+    if(!res.ok){ this.lastError = j.error_description || j.msg || j.message || ('Sign in failed ('+res.status+')'); return false; }
+    return this.setSession(j, email);
+  },
+
+  async get(key){
+    const res = await this.req('/rest/v1/app_data?select=value&key=eq.'+encodeURIComponent(key));
+    if(!res.ok) throw new Error('read failed '+res.status);
+    const rows = await res.json();
+    return rows.length ? rows[0].value : null;
+  },
+  async set(key, value){
+    const res = await this.req('/rest/v1/app_data', {
+      method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify([{key, value}])
+    });
+    if(!res.ok) throw new Error('write failed '+res.status);
+    return true;
+  },
+  async del(key){
+    await this.req('/rest/v1/app_data?key=eq.'+encodeURIComponent(key), {method:'DELETE'});
+  },
+  async all(prefix){
+    const res = await this.req('/rest/v1/app_data?select=key,value&key=like.'+encodeURIComponent(prefix+'*'));
+    if(!res.ok) throw new Error('list failed '+res.status);
+    return await res.json();
+  }
+};
+
+function storageMode(){
+  if(cloud.ready()) return 'cloud';
+  if(window.storage) return 'account';
+  if(LS) return 'device';
+  return 'memory';
+}
+
+const store = {
+  get mode(){ return storageMode(); },
+  async get(k){
+    const m = storageMode();
+    if(m==='cloud'){
+      try{ return await cloud.get(k); }catch(e){ console.error(e); return lsGet(k); }
+    }
+    if(m==='account'){
+      try{ const r = await window.storage.get(k, false); return r ? JSON.parse(r.value) : null; }
+      catch(e){ return null; }                     // a missing key throws here
+    }
+    if(m==='device') return lsGet(k);
+    return mem.has(k) ? JSON.parse(mem.get(k)) : null;
+  },
+  async set(k,v){
+    const m = storageMode();
+    mem.set(k, JSON.stringify(v));
+    if(m==='cloud'){
+      try{ await cloud.set(k,v); lsSet(k,v); return true; }    // local copy doubles as an offline cache
+      catch(e){ console.error(e); lsSet(k,v); return false; }
+    }
+    if(m==='account'){
+      try{ await window.storage.set(k, JSON.stringify(v), false); return true; }catch(e){ console.error(e); return false; }
+    }
+    if(m==='device'){ lsSet(k,v); return true; }
+    return true;
+  },
+  async del(k){
+    const m = storageMode();
+    mem.delete(k);
+    if(m==='cloud'){ try{ await cloud.del(k); }catch(e){} lsSet(k,null); return; }
+    if(m==='account'){ try{ await window.storage.delete(k, false); }catch(e){} return; }
+    if(m==='device') lsSet(k,null);
+  },
+  async keys(prefix){
+    const m = storageMode();
+    if(m==='cloud'){
+      try{ return (await cloud.all(prefix)).map(r=>r.key); }catch(e){ console.error(e); }
+    }
+    if(m==='account'){
+      try{
+        const r = await window.storage.list(prefix, false);
+        if(r && r.keys) return r.keys.map(k => typeof k === 'string' ? k : (k && k.key) || '').filter(Boolean);
+      }catch(e){}
+    }
+    if(m==='device'){ try{ return Object.keys(LS).filter(k=>k.startsWith(prefix)); }catch(e){} }
+    return [...mem.keys()].filter(k=>k.startsWith(prefix));
+  },
+  /* one round trip for everything under a prefix — used by People and Retag */
+  async all(prefix){
+    const m = storageMode();
+    if(m==='cloud'){
+      try{ return await cloud.all(prefix); }catch(e){ console.error(e); }
+    }
+    const out=[];
+    for(const k of await this.keys(prefix)){
+      const v = await this.get(k);
+      if(v) out.push({key:k, value:v});
+    }
+    return out;
+  }
+};
+const K_ROSTER = 'roster:v1';
+const K_DAY = d => 'standup:' + d;
+
+/* ---------- seed roster ---------- */
+/* aliases are matched case-insensitively, spaces and quotes ignored */
+const SEED = [
+  {id:'police', name:'Police',   thai:'พี่รวจ',   role:'', aliases:['police','พี่รวจ','พี่ตำรวจ','โปลิศ']},
+  {id:'zeen_p', name:"P'Zeen",   thai:'พี่ซีน',   role:'', aliases:["p'zeen",'pzeen','พี่ซีน','พี่zeen','zeenพี่','zeen(p)','zeenหญิง','ซีนใหญ่','พี่ซีนน์'], note:'Older · female — the senior Zeen'},
+  {id:'amp',    name:'Amp',      thai:'แอม',      role:'', aliases:['amp','แอม','แอมป์','p’amp']},
+  {id:'pun',    name:'Pun',      thai:'ปัน',      role:'', aliases:['pun','ปัน','ปั้น','ปันปัน']},
+  {id:'gong',   name:'Gong',     thai:'ก้อง',     role:'', aliases:['gong','kong','ก้อง','ก๊อง']},
+  {id:'zeen_n', name:'Zeen น้อย', thai:'ซีนน้อย',  role:'', aliases:['ซีนน้อย','zeenน้อย','zeenชาย','น้องzeen','น้องซีน','zeennoi','zeennoy','ซีนชาย','zeenเล็ก','ซีนเล็ก'], note:'Younger · male — the junior Zeen'},
+  {id:'khai',   name:'Khai',     thai:'พี่ไข่',    role:'', aliases:['khai','พี่ไข่','ไข่',"p'khai",'pkhai','ข่าย']},
+  {id:'beer',   name:'Beer',     thai:'พี่เบียร์', role:'', aliases:['beer','พี่เบียร์','เบียร์','พี่เบีย','เบีย',"p'beer",'pbeer']},
+  {id:'ja',     name:'Ja',       thai:'พี่จ๋า',    role:'', aliases:['ja','พี่จ๋า','จ๋า','tanacom','ธนาคม',"p'ja",'pja']},
+  {id:'pat',    name:'Pat',      thai:'แพท',      role:'', aliases:['pat','แพท','แพต','แพทตี้']},
+  {id:'aom',    name:'Aom',      thai:'อ๋อม',     role:'', aliases:['aom','อ๋อม','ออม','อ้อม']},
+  /* interns who have finished — off the roll call, still matched in old notes */
+  {id:'nut',    name:'Nut',      thai:'',        role:'Intern', active:false, note:'Intern — internship finished', aliases:['nut','นัท','นัด']},
+  {id:'tong',   name:'Tong',     thai:'',        role:'Intern', active:false, note:'Intern — internship finished', aliases:['tong','ต๋อง','ตอง','โต้ง']}
+];
+/* aliases that are true for BOTH Zeens — always asked, never guessed */
+const AMBIGUOUS = { 'zeen':['zeen_p','zeen_n'], 'ซีน':['zeen_p','zeen_n'], 'sean':['zeen_p','zeen_n'], 'ซีนน์':['zeen_p','zeen_n'] };
+
+const COLORS = ['#2F6F6B','#3B5B8C','#8A4B7A','#B0761B','#4A7A3E','#BE3F29','#5A5FA0','#2E7A8C','#8C5A32','#6B7C8C','#4C6E4E','#96406B'];
+
+/* ---------- projects ----------
+   keywords are matched inside task text; the longest match wins, so
+   "ISO Certified" lands on ISO-Cert rather than ISO. All editable in the app. */
+const PROJECTS = [
+  {id:'cityone',  name:'City One Care',        keywords:['city one care','cityone','city one','กินอยู่ดี','กินอยุ่ดี','emergency','บ่อวิน','นาฬิกา 4g','นาฬิกา4g']},
+  {id:'iso',      name:'ISO',                  keywords:['iso','dar','controlled doc','distribution list','เอกสาร iso']},
+  {id:'isocert',  name:'ISO-Cert',             keywords:['iso certified','iso cert','iso-cert','certified']},
+  {id:'klynx',    name:'K-lynx',               keywords:['k-lynx','klynx','k lynx']},
+  {id:'ktb',      name:'KTB',                  keywords:['ktb','กรุงไทย','sign pad']},
+  {id:'lis',      name:'LIS',                  keywords:['lis']},
+  {id:'pigno',    name:'Pignolosis',           keywords:['pignolosis','รายงานหมู','หมูชาชู','carcass','belly','หมู']},
+  {id:'livepty',  name:'Live Stream Pattaya',  keywords:['live stream','livestream','pattaya','พัทยา']},
+  {id:'watchman', name:'Watchman',             keywords:['watchman']},
+  {id:'kcontrol', name:'K-control (งานโรงเรียน)', keywords:['k-control','kcontrol','k control','k-sys','ksys','งานโรงเรียน','ajax']},
+  {id:'culture',  name:'กระทรวงวัฒนธรรม',        keywords:['กระทรวงวัฒนธรรม','วัฒนธรรม']},
+  {id:'skb',      name:'สกบ',                   keywords:['สกบ']},
+  {id:'carbook',  name:'จองรถ',                 keywords:['จองรถ','car booking','carbooking','จองรถ']},
+  {id:'sso',      name:'ประกันสังคม (SSO)',      keywords:['ประกันสังคม','sso']},
+  {id:'queue',    name:'Queue Management (Tube Labelling)', keywords:['queue management','tube label','tube labelling','queue']},
+  {id:'sellio',   name:'Sellio',               keywords:['sellio']},
+  {id:'joomla',   name:'Joomla',               keywords:['joomla']},
+  {id:'other',    name:'Other',                keywords:[]}
+];
+const K_PROJ = 'projects:v1';
+const PROJ_VERSION_KEY = 'projects:version';
+const PROJ_VERSION = 2;
+
+function projectById(id){ return S.projects.find(p=>p.id===id) || null; }
+function projectName(id){ const p=projectById(id); return p?p.name:''; }
+
+/* longest keyword match wins; ascii keywords need a word boundary so
+   "lis" does not fire on the word "list" */
+function detectProject(text){
+  const low = String(text||'').toLowerCase();
+  let best='', bestLen=0;
+  (S.projects||[]).forEach(p=>{
+    (p.keywords||[]).forEach(k=>{
+      const kw=String(k||'').toLowerCase().trim();
+      if(!kw || kw.length<=bestLen) return;
+      const ascii = /^[\x00-\x7F]+$/.test(kw);
+      let hit;
+      if(ascii){
+        const safe=kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        hit = new RegExp('(^|[^a-z0-9])'+safe+'([^a-z0-9]|$)','i').test(low);
+      }else{
+        hit = low.includes(kw);
+      }
+      if(hit){ best=p.id; bestLen=kw.length; }
+    });
+  });
+  return best;
+}
+
+/* tasks are stored as {t: text, p: projectId, status, helpFrom, helpNote};
+   older saves used plain strings, or {t,p} with status/helpFrom/helpNote per PERSON —
+   both are upgraded on load. */
+function asTask(x){
+  if(x && typeof x==='object'){
+    return {t:String(x.t||''), p:x.p||'', status:x.status||'', helpFrom:x.helpFrom||[], helpNote:x.helpNote||''};
+  }
+  const t=String(x||'');
+  return {t, p:detectProject(t), status:'', helpFrom:[], helpNote:''};
+}
+function normalizeDay(d){
+  Object.values(d.entries||{}).forEach(e=>{
+    e.tasks=(e.tasks||[]).map(asTask).filter(x=>x.t);
+    /* migrate a legacy per-person status/helpFrom/helpNote onto every task,
+       and 'out' onto a standalone away flag — a one-time upgrade */
+    if(e.status!==undefined){
+      if(e.status==='out') e.awayType='away';
+      else if(e.status) e.tasks.forEach(tk=>{ if(!tk.status) tk.status=e.status; });
+      if(e.helpFrom && e.helpFrom.length) e.tasks.forEach(tk=>{ if(!tk.helpFrom||!tk.helpFrom.length) tk.helpFrom=[...e.helpFrom]; });
+      if(e.helpNote) e.tasks.forEach(tk=>{ if(!tk.helpNote) tk.helpNote=e.helpNote; });
+      delete e.status; delete e.helpFrom; delete e.helpNote;
+    }
+    if(e.away===true && !e.awayType) e.awayType='away';
+    delete e.away;
+    if(e.awayType===undefined) e.awayType='';
+    if(e.awayProject===undefined) e.awayProject='';
+  });
+  return d;
+}
+/* the person-day-level view of status derived from their tasks — 'blocked' beats 'help' */
+function entryFlag(e){
+  if(!e) return '';
+  const tasks=e.tasks||[];
+  if(tasks.some(t=>t.status==='blocked')) return 'blocked';
+  if(tasks.some(t=>t.status==='help')) return 'help';
+  return '';
+}
+
+/* ---------- state ---------- */
+const S = {
+  tab:'standup',
+  date: todayISO(),
+  roster:[],
+  projects:[],
+  day:null,
+  active:null,
+  cache:new Map(),
+  parsed:null,
+  personId:null,
+  saveTimer:null
+};
+
+function todayISO(){ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function norm(s){ return String(s||'').toLowerCase().replace(/[’'`."·•]/g,'').replace(/\s+/g,'').trim(); }
+function memberById(id){ return S.roster.find(m=>m.id===id) || null; }
+function activeRoster(){ return S.roster.filter(m=>m.active!==false); }
+function isFormer(m){ return !!m && m.active===false; }
+function colorOf(id){ const i=Math.max(0,S.roster.findIndex(m=>m.id===id)); return COLORS[i%COLORS.length]; }
+function initials(m){ const n=(m.name||'').trim(); const l=n.match(/[A-Za-z]/g); return l? l.slice(0,2).join('').toUpperCase() : (m.thai||n).slice(0,2); }
+function prettyDate(iso){
+  const [y,m,d]=iso.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  return dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+}
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ---------- day model ---------- */
+function blankEntry(){ return {tasks:[], awayType:'', awayProject:'', touched:false}; }
+function blankDay(date){ return {date, updatedAt:null, entries:{}}; }
+function entryOf(id){
+  if(!S.day.entries[id]) S.day.entries[id]=blankEntry();
+  return S.day.entries[id];
+}
+function isCaptured(e){ return !!e && (e.touched || (e.tasks&&e.tasks.length) || e.awayType); }
+
+/* ---------- persistence ---------- */
+function markSaving(){ const el=document.getElementById('savestate'); el.textContent='Saving…'; el.classList.remove('on'); }
+function markSaved(){ const el=document.getElementById('savestate'); el.textContent='Saved'; el.classList.add('on'); setTimeout(()=>{ if(el.textContent==='Saved') el.textContent=''; },2500); }
+
+function queueSave(){
+  markSaving();
+  clearTimeout(S.saveTimer);
+  S.saveTimer = setTimeout(saveDay, 500);
+}
+async function saveDay(){
+  S.day.updatedAt = new Date().toISOString();
+  S.cache.set(S.day.date, S.day);
+  const ok = await store.set(K_DAY(S.day.date), S.day);
+  ok ? markSaved() : (document.getElementById('savestate').textContent='Save failed');
+}
+async function saveRoster(){ await store.set(K_ROSTER, S.roster); }
+async function saveProjects(){ await store.set(K_PROJ, S.projects); }
+
+async function loadDay(date){
+  if(S.cache.has(date)) return S.cache.get(date);
+  const d = normalizeDay(await store.get(K_DAY(date)) || blankDay(date));
+  if(!d.entries) d.entries={};
+  S.cache.set(date,d);
+  return d;
+}
+
+/* ============================================================
+   Name matching
+   ============================================================ */
+function aliasIndex(){
+  const map = new Map();
+  S.roster.forEach(m=>{
+    const all = [m.name, m.thai].concat(m.aliases||[]).filter(Boolean);
+    all.forEach(a=>{
+      const n = norm(a);
+      if(!n) return;
+      if(AMBIGUOUS[n]) return;              // never let an ambiguous token resolve silently
+      if(!map.has(n)) map.set(n, new Set());
+      map.get(n).add(m.id);
+    });
+  });
+  return map;
+}
+
+/* returns {ids:[...], ambiguous:bool} */
+function resolveName(token){
+  const n = norm(token);
+  if(!n) return {ids:[],ambiguous:false};
+  if(AMBIGUOUS[n]) return {ids:AMBIGUOUS[n].filter(memberById), ambiguous:true};
+  const idx = aliasIndex();
+  if(idx.has(n)){
+    const ids=[...idx.get(n)];
+    return {ids, ambiguous: ids.length>1};
+  }
+  // loose: alias contained in token or vice versa (handles "พี่ไข่ครับ", "Gong(DevOps)")
+  let hits=[];
+  idx.forEach((ids,alias)=>{
+    if(alias.length>=2 && (n.startsWith(alias) || n.includes(alias))) hits.push(...ids);
+  });
+  hits=[...new Set(hits)];
+  if(hits.length) return {ids:hits, ambiguous:hits.length>1};
+  // ambiguous root inside a longer token, e.g. "zeenครับ"
+  for(const key in AMBIGUOUS){ if(n.includes(key)) return {ids:AMBIGUOUS[key].filter(memberById), ambiguous:true}; }
+  return {ids:[],ambiguous:false};
+}
+
+/* find members mentioned inside free text (for "who did they name?") */
+function mentionsIn(text, excludeId){
+  const found=new Set(); let ambiguous=false;
+  const low = String(text||'').toLowerCase();
+  S.roster.forEach(m=>{
+    const all=[m.name,m.thai].concat(m.aliases||[]).filter(Boolean);
+    for(const a of all){
+      const na=norm(a);
+      if(!na || AMBIGUOUS[na]) continue;
+      const isLatin = /^[a-z0-9'".\s]+$/i.test(a);
+      let hit=false;
+      if(isLatin){
+        const safe=a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        hit = new RegExp('(^|[^a-z0-9])'+safe+'([^a-z0-9]|$)','i').test(low);
+      }else{
+        hit = low.includes(a.toLowerCase());
+      }
+      if(hit){ found.add(m.id); break; }
+    }
+  });
+  for(const key in AMBIGUOUS){ if(low.includes(key)) ambiguous=true; }
+  if(excludeId) found.delete(excludeId);
+  return {ids:[...found], ambiguous};
+}
+
+const HELP_WORDS = ['need help','needs help','need support','help from','ขอความช่วยเหลือ','ต้องการความช่วยเหลือ','ช่วยดู','ช่วยหน่อย','ฝากช่วย','ขอให้ช่วย','ต้องการให้','support from','ask ','pending review'];
+const BLOCK_WORDS = ['blocked','blocker','stuck','cannot','can not','can\'t','waiting for','wait for','ติดปัญหา','ติดอยู่','ติด bug','รออยู่','รอ ','issue','problem','error','ยังไม่ได้','ทำไม่ได้','พัง'];
+function sniffStatus(text){
+  const low=String(text||'').toLowerCase();
+  if(BLOCK_WORDS.some(w=>low.includes(w))) return 'blocked';
+  if(HELP_WORDS.some(w=>low.includes(w))) return 'help';
+  return '';
+}
+
+/* ============================================================
+   Importer — turn pasted notes into entries
+   ============================================================ */
+const MON = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+  'ม.ค.':1,'ก.พ.':2,'มี.ค.':3,'เม.ย.':4,'พ.ค.':5,'มิ.ย.':6,'ก.ค.':7,'ส.ค.':8,'ก.ย.':9,'ต.ค.':10,'พ.ย.':11,'ธ.ค.':12};
+function iso(y,m,d){
+  if(y<100) y = y>=60 ? y+2500 : y+2000;   // "69" reads as พ.ศ. 2569
+  if(y>2400) y-=543;                       // Buddhist era
+  if(!y||!m||!d||m>12||d>31) return null;
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function detectDate(line){
+  const s=line.trim();
+  if(s.length>28) return null;
+  let m;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) return iso(+m[1],+m[2],+m[3]);
+  if((m=s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{2,4})$/))) return iso(+m[3],+m[2],+m[1]);
+  if((m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,9}|[ก-๙.]{4,6})\.?\s+(\d{2,4})$/))){
+    const key=/^[A-Za-z]/.test(m[2]) ? m[2].slice(0,3).toLowerCase() : m[2];
+    return MON[key] ? iso(+m[3], MON[key], +m[1]) : null;
+  }
+  if((m=s.match(/^([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})$/))){
+    const key=m[1].slice(0,3).toLowerCase();
+    return MON[key] ? iso(+m[3], MON[key], +m[2]) : null;
+  }
+  return null;
+}
+
+/* A dash line is ALWAYS a task, never a name — that is how these notes are written.
+   Sub-detail arrows (--> → ↳) are tasks too. Names sit alone on their own line. */
+const DASH  = /^\s*(?:-{1,2}>?|[*•·▪+►]|→|↳|└)/;
+const NUMB  = /^\s*\d{1,2}[.)]\s*/;
+const SEP   = /^(.{1,40}?)\s*[:：|>»]\s*(.*)$/;
+function stripBullet(s){
+  return s.replace(/^\s*(?:-{1,2}>?|[*•·▪+►=]+|→|↳|└→?|\d{1,2}[.)])\s*/,'').trim();
+}
+
+function parseNotes(raw){
+  const lines = String(raw||'').replace(/\r/g,'').split('\n');
+  const rows = [];
+  const found = {date:null};
+  let cur = null;
+  const push = () => { if(cur) rows.push(cur); cur = null; };
+  const start = (token, res, rest) => {
+    push();
+    cur = {
+      token: String(token).trim(),
+      memberId: res.ambiguous ? '' : res.ids[0],
+      options: res.ambiguous ? res.ids : null,
+      ambiguous: res.ambiguous,
+      items: rest ? [rest] : [],
+      raw: String(token).trim()
+    };
+  };
+
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i];
+    const trimmed = line.trim();
+    if(!trimmed) continue;
+    if(/^[=_–—]{3,}$/.test(trimmed) || /^-{3,}$/.test(trimmed)) continue;
+
+    const dl = detectDate(trimmed.replace(/^(date|วันที่|standup)\s*[:：]?\s*/i,''));
+    if(dl){ found.date = dl; continue; }
+
+    const isTask = DASH.test(line);
+    const body = stripBullet(trimmed);
+    if(!body) continue;
+
+    if(!isTask){
+      // 1. the whole line is just a name — the usual case
+      const bare = body.replace(/[:：]\s*$/,'').replace(/\s*\([^)]*\)\s*$/,'').trim();
+      if(bare.length <= 30){
+        const r = resolveName(bare);
+        if(r.ids.length){ start(bare, r, ''); continue; }
+      }
+      // 2. "Name: task" on one line
+      const m = body.match(SEP);
+      if(m){
+        const r = resolveName(m[1]);
+        if(r.ids.length){ start(m[1], r, m[2].trim()); continue; }
+      }
+      // 3. "Name task" — first word or two only
+      const words = body.split(/\s+/);
+      let matched = false;
+      for(let take=Math.min(2,words.length); take>=1; take--){
+        const cand = words.slice(0,take).join(' ').replace(/[,:.]$/,'');
+        const r = resolveName(cand);
+        if(r.ids.length){
+          start(cand, r, words.slice(take).join(' ').replace(/^[\-–—:,>]\s*/,'').trim());
+          matched = true; break;
+        }
+      }
+      if(matched) continue;
+      // 4. a short line with dash-tasks under it is a name we do not know yet
+      if(body.length <= 25){
+        let j=i+1; while(j<lines.length && !lines[j].trim()) j++;
+        if(j<lines.length && DASH.test(lines[j])){
+          push();
+          cur = {token:body, memberId:'', options:null, ambiguous:false, unknown:true, newName:true, items:[], raw:body};
+          continue;
+        }
+      }
+    }
+
+    if(cur){ cur.items.push(body); continue; }
+    const last = rows[rows.length-1];
+    if(last && last.unknown && !last.newName){ last.items.push(body); last.raw += '\n'+body; }
+    else rows.push({token:'', memberId:'', options:null, ambiguous:false, unknown:true, items:[body], raw:body});
+  }
+  push();
+
+  rows.forEach(r=>{
+    const text = r.items.join(' ');
+    r.status = sniffStatus(text);
+    const mm = mentionsIn(text, r.memberId);
+    r.helpFrom = mm.ids;
+    r.mentionAmbiguous = mm.ambiguous;
+  });
+  rows.detectedDate = found.date;
+  rows.named = rows.filter(r=>r.memberId||r.ambiguous).length;
+  return rows;
+}
+
+function dateFromName(n){
+  const s = String(n||'').replace(/\.[a-z0-9]+$/i,'');
+  let m;
+  if((m=s.match(/(20\d{2})[-_.]?(\d{1,2})[-_.]?(\d{1,2})(?!\d)/))) return iso(+m[1],+m[2],+m[3]);
+  if((m=s.match(/(\d{1,2})[-_.](\d{1,2})[-_.](20\d{2}|\d{2})(?!\d)/))) return iso(+m[3],+m[2],+m[1]);
+  return null;
+}
+
+async function importRows(rows, date, mode){
+  const day = normalizeDay(mode==='replace' ? blankDay(date) : (await loadDay(date)));
+  let used=0, skipped=0;
+  (rows||[]).forEach(r=>{
+    if(!r.memberId){ skipped++; return; }
+    if(!day.entries[r.memberId]) day.entries[r.memberId]=blankEntry();
+    const e=day.entries[r.memberId];
+    const tasks=r.items.map(s=>s.trim()).filter(Boolean).map(t=>({
+      t, p:detectProject(t), status:sniffStatus(t), helpFrom:mentionsIn(t, r.memberId).ids, helpNote:''
+    }));
+    const have=new Set(e.tasks.map(x=>x.t));
+    e.tasks = mode==='replace' ? tasks : e.tasks.concat(tasks.filter(x=>!have.has(x.t)));
+    e.touched=true;
+    used++;
+  });
+  day.updatedAt=new Date().toISOString();
+  S.cache.set(date,day);
+  await store.set(K_DAY(date), day);
+  if(date===S.date) S.day=day;
+  return {used, skipped};
+}
+
+async function applyImport(mode){
+  const date = document.getElementById('imp-date').value || S.date;
+  const {used, skipped} = await importRows(S.parsed, date, mode);
+  S.parsed=null;
+  const raw=document.getElementById('imp-raw'); if(raw) raw.value='';
+  toast(`Imported ${used} ${used===1?'person':'people'} into ${date}` + (skipped?` · ${skipped} left out`:''));
+  S.tab='summary'; S.date=date;
+  document.getElementById('thedate').value=date;
+  S.day=await loadDay(date);
+  render();
+}
+
+async function importQueue(){
+  const ready=(S.queue||[]).filter(f=>f.rows.named>0 && !f.rows.some(r=>!r.memberId));
+  if(!ready.length){ toast('No file is fully matched yet — open one and assign the leftovers'); return; }
+  let people=0;
+  for(const f of ready){ const {used}=await importRows(f.rows, f.date, 'merge'); people+=used; f.done=true; }
+  toast(`Imported ${ready.length} file${ready.length===1?'':'s'} · ${people} entries`);
+  S.day=await loadDay(S.date);
+  renderImport();
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const view = () => document.getElementById('view');
+
+function render(){
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.tab===S.tab)));
+  document.getElementById('brandsub').textContent = '08:00 · ' + prettyDate(S.date);
+  ({standup:renderStandup, summary:renderSummary, import:renderImport, people:renderPeople, team:renderTeam, projects:renderProjects, report:renderReport, sync:renderSync}[S.tab])();
+}
+
+/* ---------- Standup ---------- */
+function renderStandup(){
+  const R = activeRoster();
+  if(!S.active || !memberById(S.active) || isFormer(memberById(S.active))) S.active = R.length ? R[0].id : null;
+  if(!R.length){ view().innerHTML = `<h2>Standup</h2><div class="empty">No one on the roster yet. Add your team on the <b>Team</b> tab.</div>`; return; }
+
+  const done = R.filter(m=>isCaptured(S.day.entries[m.id])).length;
+  const rail = R.map((m,i)=>{
+    const e=S.day.entries[m.id];
+    let cls='dot';
+    if(e && e.awayType) cls+=' out';
+    else if(entryFlag(e)) cls+=' flag';
+    else if(isCaptured(e)) cls+=' done';
+    const count = e && e.tasks ? e.tasks.length : 0;
+    return `<li><button class="roll-item" data-goto="${m.id}" aria-current="${m.id===S.active}">
+      <span class="roll-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="${cls}"></span>
+      <span class="roll-name">${esc(m.name)}</span>
+      <span class="roll-meta">${count?count:'–'}</span>
+    </button></li>`;
+  }).join('');
+
+  const m = memberById(S.active);
+  const e = entryOf(m.id);
+  const idx = R.findIndex(x=>x.id===m.id);
+  const next = R[(idx+1)%R.length];
+
+  view().innerHTML = `
+  <div class="standup">
+    <aside class="rail">
+      <div class="rail-head">
+        <b>Roll call</b>
+        <div class="rail-count">${done}<i> / ${R.length} captured</i></div>
+        <div class="meter"><i style="width:${Math.round(done/R.length*100)}%"></i></div>
+      </div>
+      <ul class="roll">${rail}</ul>
+    </aside>
+
+    <section class="speaker">
+      <div class="speaker-head">
+        <div class="mark" style="background:${colorOf(m.id)}">${esc(initials(m))}</div>
+        <div class="speaker-id">
+          <h3>${esc(m.name)}${m.thai&&norm(m.thai)!==norm(m.name)?` <span style="color:var(--muted);font-weight:400">${esc(m.thai)}</span>`:''}</h3>
+          <div class="sub">${esc(m.role||'role not set')}${m.note?' · '+esc(m.note):''}</div>
+        </div>
+        <button class="chip st-out" data-awaytype="away" aria-pressed="${e.awayType==='away'}" style="flex:none">${e.awayType==='away'?'Away today':'Mark away'}</button>
+        <button class="chip st-out" data-awaytype="leave" aria-pressed="${e.awayType==='leave'}" style="flex:none">${e.awayType==='leave'?'On leave':'Leave'}</button>
+      </div>
+      ${e.awayType==='away' ? `
+      <div class="field">
+        <label for="awayproj">Away for which project</label>
+        <select id="awayproj">
+          <option value="">— pick a project —</option>
+          ${S.projects.map(p=>`<option value="${p.id}" ${e.awayProject===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+        </select>
+      </div>`:''}
+
+      <div class="field">
+        <label for="tasks">What they will do today — one task per line</label>
+        <textarea id="tasks" rows="6" placeholder="แก้ bug watchman&#10;เก็บเอกสาร ISO&#10;Live Stream แก้ไข">${esc((e.tasks||[]).map(x=>x.t).join('\n'))}</textarea>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <label>Per task <span style="text-transform:none;letter-spacing:0">— project guessed from the wording, status and who they're working with are per line</span></label>
+        <div id="taskdetail"></div>
+      </div>
+
+      <div class="speaker-foot">
+        <span class="note">Saves as you type. <b>Ctrl</b> + <b>Enter</b> moves to the next person.</span>
+        <div class="row">
+          <button class="btn quiet" data-clear="1">Clear this person</button>
+          <button class="btn primary" data-goto="${next.id}">Next: ${esc(next.name)}</button>
+        </div>
+      </div>
+    </section>
+  </div>`;
+
+  const ta = document.getElementById('tasks');
+  ta.addEventListener('input', ()=>{
+    const en = entryOf(S.active);
+    const prev = new Map((en.tasks||[]).map(x=>[x.t, x]));
+    en.tasks = ta.value.split('\n').map(s=>s.trim()).filter(Boolean)
+      .map(t=> prev.has(t) ? {...prev.get(t), t} : {t, p:detectProject(t), status:'', helpFrom:[], helpNote:''});
+    en.touched = true;
+    queueSave(); refreshRail(); paintTaskDetails();
+  });
+  ta.addEventListener('keydown', ev=>{
+    if(ev.key==='Enter' && (ev.ctrlKey||ev.metaKey)){ ev.preventDefault(); S.active=next.id; renderStandup(); }
+  });
+  if(S._focused !== S.active){ ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); S._focused = S.active; }
+  const ap = document.getElementById('awayproj');
+  if(ap) ap.addEventListener('change', ()=>{ const en=entryOf(S.active); en.awayProject=ap.value; en.touched=true; queueSave(); });
+  paintTaskDetails();
+}
+
+function paintTaskDetails(){
+  const box=document.getElementById('taskdetail'); if(!box) return;
+  const m = memberById(S.active);
+  const e = entryOf(S.active);
+  const tasks = e.tasks||[];
+  if(!tasks.length){ box.innerHTML='<div class="note">Type a task above — its project, status, and who it involves show up here.</div>'; return; }
+  const R = activeRoster();
+  const projOpts = sel => `<option value="">— no project —</option>` +
+    S.projects.map(p=>`<option value="${p.id}" ${sel===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+  box.innerHTML = tasks.map((x,i)=>`
+    <div class="taskrow">
+      <div class="tprow" style="border-bottom:0;padding-bottom:0">
+        <span class="tpnum">${String(i+1).padStart(2,'0')}</span>
+        <span class="tptext" title="${esc(x.t)}">${esc(x.t)}</span>
+        <select data-taskproj="${i}" class="${x.p?'set':''}">${projOpts(x.p)}</select>
+      </div>
+      <div class="chips small" style="margin:6px 0 0 26px">
+        <button class="chip st-ok" data-taskstatus="${i}:ok" aria-pressed="${x.status==='ok'}">On track</button>
+        <button class="chip st-help" data-taskstatus="${i}:help" aria-pressed="${x.status==='help'}">Needs help</button>
+        <button class="chip st-block" data-taskstatus="${i}:blocked" aria-pressed="${x.status==='blocked'}">Blocked</button>
+      </div>
+      <div class="chips small" style="margin:6px 0 0 26px">
+        ${R.filter(p=>p.id!==m.id).map(p=>
+          `<button class="chip" data-taskhelp="${i}:${p.id}" aria-pressed="${(x.helpFrom||[]).includes(p.id)}">${esc(p.name)}</button>`).join('')}
+      </div>
+      ${(x.status==='help'||x.status==='blocked')?`
+      <div class="helpbox ${x.status==='blocked'?'blocked':''}" style="margin:8px 0 0 26px">
+        <textarea data-tasknote="${i}" rows="2" placeholder="${x.status==='blocked'?'What is blocking this':'What they need help with'}">${esc(x.helpNote||'')}</textarea>
+      </div>`:''}
+    </div>`).join('');
+  box.querySelectorAll('[data-tasknote]').forEach(ta=>{
+    ta.addEventListener('input', ()=>{
+      const en=entryOf(S.active); const i=+ta.dataset.tasknote;
+      if(en.tasks[i]){ en.tasks[i].helpNote=ta.value; en.touched=true; queueSave(); }
+    });
+  });
+}
+
+function refreshRail(){
+  const R = activeRoster();
+  const done = R.filter(x=>isCaptured(S.day.entries[x.id])).length;
+  const rc=document.querySelector('.rail-count');
+  if(rc) rc.innerHTML = `${done}<i> / ${R.length} captured</i>`;
+  const mt=document.querySelector('.meter i');
+  if(mt) mt.style.width = Math.round(done/R.length*100)+'%';
+  document.querySelectorAll('.roll-item').forEach(btn=>{
+    const id=btn.dataset.goto, e=S.day.entries[id];
+    const dot=btn.querySelector('.dot'); if(!dot) return;
+    dot.className='dot';
+    if(e && e.awayType) dot.classList.add('out');
+    else if(entryFlag(e)) dot.classList.add('flag');
+    else if(isCaptured(e)) dot.classList.add('done');
+    btn.querySelector('.roll-meta').textContent = e&&e.tasks&&e.tasks.length ? e.tasks.length : '–';
+  });
+}
+
+/* ---------- Summary ---------- */
+function renderSummary(){
+  const entries = S.roster.map(m=>({m, e:S.day.entries[m.id]})).filter(x=>isCaptured(x.e));
+  if(!entries.length){
+    view().innerHTML = `<h2>Summary · ${esc(prettyDate(S.date))}</h2>
+      <div class="empty">Nothing recorded for this day yet. Capture it on <b>Standup</b>, or paste yesterday's paper notes into <b>Import notes</b>.</div>`;
+    return;
+  }
+  const flags = entries.filter(x=>entryFlag(x.e));
+  const away = entries.filter(x=>x.e.awayType);
+  const taskCount = entries.reduce((n,x)=>n+(x.e.tasks?x.e.tasks.length:0),0);
+  const byProj = {};
+  entries.forEach(({m,e})=>(e.tasks||[]).forEach(x=>{
+    const k=x.p||'_none';
+    (byProj[k]=byProj[k]||[]).push({who:m.name, t:x.t});
+  }));
+  const projOrder = Object.keys(byProj).sort((a,b)=>byProj[b].length-byProj[a].length);
+
+  const taskLine = x => `<li>${esc(x.t)}${x.p?` <span class="ptag">${esc(projectName(x.p))}</span>`:''}
+      ${x.status==='blocked'?' <span class="tag block">Blocked</span>':x.status==='help'?' <span class="tag help">Needs help</span>':''}
+      ${(x.helpFrom||[]).length?` <span class="note">· with ${x.helpFrom.map(id=>esc((memberById(id)||{}).name||'')).filter(Boolean).join(', ')}</span>`:''}
+      ${x.helpNote?`<div class="note" style="margin-top:2px">↳ ${esc(x.helpNote)}</div>`:''}
+    </li>`;
+
+  const lines = entries.filter(x=>!x.e.awayType).map(({m,e})=>`
+    <div class="line">
+      <div class="line-name">${esc(m.name)}${isFormer(m)?'<br><span style="color:var(--muted);font-size:10px">former</span>':''}</div>
+      <div class="line-body">
+        ${e.tasks&&e.tasks.length?`<ul>${e.tasks.map(taskLine).join('')}</ul>`:'<span class="note">No tasks noted</span>'}
+      </div>
+      <div>${entryFlag(e)==='blocked'?'<span class="tag block">Blocked</span>':entryFlag(e)==='help'?'<span class="tag help">Needs help</span>':'<span class="tag ok">On track</span>'}</div>
+    </div>`).join('');
+
+  const flowRows = flags.flatMap(({m,e})=>(e.tasks||[]).filter(x=>x.status==='help'||x.status==='blocked').map(x=>{
+    const who = (x.helpFrom||[]).map(id=>memberById(id)).filter(Boolean);
+    return `<div class="flow">
+      <span class="who">${esc(m.name)}</span>
+      <span class="note" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.t)}</span>
+      <span class="arrow">needs →</span>
+      <span class="who">${who.length? who.map(w=>esc(w.name)).join(', ') : '<span class="note">not assigned yet</span>'}</span>
+      ${x.helpNote?`<span class="note">· ${esc(x.helpNote)}</span>`:''}
+      ${x.status==='blocked'?'<span class="tag block">Blocked</span>':'<span class="tag help">Help</span>'}
+    </div>`;
+  })).join('');
+
+  view().innerHTML = `
+    <h2>Summary · ${esc(prettyDate(S.date))}</h2>
+    <div class="stat-row">
+      <div class="stat"><b>${entries.length}</b><span>Reported</span></div>
+      <div class="stat"><b>${taskCount}</b><span>Tasks</span></div>
+      <div class="stat"><b>${flags.length}</b><span>Need help</span></div>
+      <div class="stat"><b>${away.length}</b><span>Away</span></div>
+    </div>
+
+    ${flags.length?`<h2>Hand-offs to unblock</h2><div class="digest">${flowRows}</div>`:''}
+
+    <h2>Today by project · ${projOrder.filter(k=>k!=='_none').length} active</h2>
+    <div class="digest">
+      ${projOrder.map(k=>`
+        <div class="line">
+          <div class="line-name">${k==='_none'?'<span style="color:var(--muted)">Untagged</span>':esc(projectName(k))}</div>
+          <div class="line-body"><ul>${byProj[k].map(it=>`<li><b>${esc(it.who)}</b> — ${esc(it.t)}</li>`).join('')}</ul></div>
+          <div><span class="tag">${byProj[k].length}</span></div>
+        </div>`).join('')}
+    </div>
+
+    <h2>Today by person</h2>
+    <div class="digest">${lines}</div>
+    ${away.length?`<p class="note" style="margin-top:10px">${away.map(x=>esc(x.m.name)+(x.e.awayType==='leave'?' (leave)':x.e.awayProject?` (away — ${esc(projectName(x.e.awayProject))})`:' (away)')).join(', ')}</p>`:''}
+
+    <h2>Share</h2>
+    <div class="row" style="margin-bottom:14px">
+      <button class="btn primary" data-copy="md">Copy as text</button>
+      <button class="btn" data-download="md">Download .md</button>
+      <button class="btn" data-backup="1">Back up all data (.json)</button>
+    </div>
+    <pre class="md" id="mdout">${esc(buildMarkdown(S.date, S.day))}</pre>`;
+}
+
+function buildMarkdown(date, day){
+  const out=[`# Daily standup — ${prettyDate(date)}`,''];
+  const rows=S.roster.map(m=>({m,e:day.entries[m.id]})).filter(x=>isCaptured(x.e));
+  const away=rows.filter(x=>x.e.awayType);
+  out.push('## Today');
+  rows.filter(x=>!x.e.awayType).forEach(({m,e})=>{
+    out.push(`**${m.name}**${m.role?` · ${m.role}`:''}`);
+    (e.tasks||[]).forEach(x=>{
+      const who=(x.helpFrom||[]).map(id=>(memberById(id)||{}).name).filter(Boolean).join(', ');
+      let line=`- ${x.t}${x.p?`  [${projectName(x.p)}]`:''}`;
+      if(x.status==='blocked') line+=' *(blocked)*'; else if(x.status==='help') line+=' *(needs help)*';
+      if(who) line+=` — with ${who}`;
+      out.push(line);
+      if(x.helpNote) out.push(`  ↳ ${x.helpNote}`);
+    });
+    if(!e.tasks||!e.tasks.length) out.push('- (no tasks noted)');
+    out.push('');
+  });
+  const bp={};
+  rows.filter(x=>!x.e.awayType).forEach(({m,e})=>(e.tasks||[]).forEach(x=>{
+    const k=x.p?projectName(x.p):'Untagged'; (bp[k]=bp[k]||[]).push(m.name);
+  }));
+  const bpKeys=Object.keys(bp).sort((a,b)=>bp[b].length-bp[a].length);
+  if(bpKeys.length){
+    out.push('## By project');
+    bpKeys.forEach(k=>out.push(`- **${k}** (${bp[k].length}) — ${[...new Set(bp[k])].join(', ')}`));
+    out.push('');
+  }
+  const flagRows=rows.flatMap(({m,e})=>(e.tasks||[]).filter(x=>x.status==='help'||x.status==='blocked').map(x=>({m,x})));
+  if(flagRows.length){
+    out.push('## Needs help / blocked');
+    flagRows.forEach(({m,x})=>{
+      const who=(x.helpFrom||[]).map(id=>(memberById(id)||{}).name).filter(Boolean).join(', ');
+      out.push(`- **${m.name}** — ${x.t} → ${who||'unassigned'}${x.helpNote?` — ${x.helpNote}`:''}${x.status==='blocked'?' *(blocked)*':''}`);
+    });
+    out.push('');
+  }
+  if(away.length){
+    out.push(`## Away`);
+    away.forEach(x=>out.push(`- ${x.m.name}${x.e.awayType==='leave'?' (leave)':x.e.awayProject?` (away — ${projectName(x.e.awayProject)})`:' (away)'}`));
+  }
+  return out.join('\n');
+}
+
+/* ---------- Import ---------- */
+function renderImport(){
+  view().innerHTML = `
+    <h2>Import notes</h2>
+    <p class="lede">Drop in your saved <b>.txt</b> notes — the date comes from the file name — or paste a note straight from paper or LINE. Names sitting on their own line with <b>-</b> tasks underneath is exactly the shape this expects. Anything written as just “Zeen” is held back for you to decide.</p>
+    <div class="split">
+      <div class="panel">
+        <div class="drop" id="drop">
+          <b>Drop .txt notes here</b>
+          <label class="btn" style="margin-top:10px;display:inline-block">Choose files<input type="file" id="imp-files" accept=".txt,.md,.csv,text/plain" multiple style="display:none"></label>
+          <div class="note" style="margin-top:8px">Many at once is fine. Photos can't be read here — see the note below.</div>
+        </div>
+        <div id="filequeue"></div>
+        <div class="field" style="margin-top:18px">
+          <label for="imp-date">Date these notes belong to</label>
+          <input type="date" id="imp-date" value="${S.date}">
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <label for="imp-raw">Or paste a note</label>
+          <textarea id="imp-raw" rows="12" placeholder="พี่รวจ&#10;-แก้ bug watchman&#10;พี่ซีน&#10;-เก็บเอกสาร สกบ.&#10;-เก็บเอกสาร ISO"></textarea>
+        </div>
+        <div class="row">
+          <button class="btn primary" data-parse="1">Read the note</button>
+          <button class="btn" data-sample="1">Use an example</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <b style="font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">What I found</b>
+          <span class="note" id="imp-count"></span>
+        </div>
+        <div class="parsed" id="imp-rows">
+          <div class="empty">Paste a note and choose <b>Read the note</b>. You can fix every match before anything is saved.</div>
+        </div>
+        <div class="row" id="imp-actions" style="margin-top:14px;display:none">
+          <button class="btn primary" data-apply="merge">Add to that day</button>
+          <button class="btn" data-apply="replace">Replace that day</button>
+        </div>
+      </div>
+    </div>`;
+  if(S.parsed) paintParsed();
+  paintQueue();
+  const drop=document.getElementById('drop'), picker=document.getElementById('imp-files');
+  picker.addEventListener('change', e=>readFiles(e.target.files));
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop', e=>readFiles(e.dataTransfer.files));
+}
+
+async function readFiles(fileList){
+  const files=[...(fileList||[])];
+  if(!files.length) return;
+  const images=files.filter(f=>/^image\//.test(f.type)||/\.(jpe?g|png|heic)$/i.test(f.name));
+  const texts=files.filter(f=>!images.includes(f));
+  S.queue = S.queue || [];
+  for(const f of texts){
+    let text='';
+    try{ text = await f.text(); }catch(e){ continue; }
+    const rows = parseNotes(text);
+    S.queue.push({name:f.name, date: rows.detectedDate || dateFromName(f.name) || S.date, text, rows});
+  }
+  if(images.length) toast(`${images.length} photo${images.length===1?'':'s'} skipped — handwriting has to be typed up first`);
+  paintQueue();
+}
+
+function paintQueue(){
+  const box=document.getElementById('filequeue'); if(!box) return;
+  const q=S.queue||[];
+  if(!q.length){ box.innerHTML=''; return; }
+  box.innerHTML = `
+    <div class="row" style="justify-content:space-between;margin:16px 0 8px">
+      <b style="font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)">${q.length} file${q.length===1?'':'s'}</b>
+      <div class="row" style="gap:6px">
+        <button class="btn primary" data-queueall="1" style="padding:6px 11px;font-size:12.5px">Import every matched file</button>
+        <button class="btn quiet" data-queueclear="1">Clear</button>
+      </div>
+    </div>
+    ${q.map((f,i)=>{
+      const bad=f.rows.filter(r=>!r.memberId).length;
+      const state = f.done ? '<span class="tag ok">Imported</span>'
+        : !f.rows.named ? '<span class="tag block">No names</span>'
+        : bad ? `<span class="tag help">${bad} to check</span>` : '<span class="tag ok">Ready</span>';
+      return `<div class="qrow">
+        <button class="btn quiet" data-openfile="${i}" style="flex:1;text-align:left;padding:4px 0;color:var(--ink)">${esc(f.name)}</button>
+        <span class="alias">${esc(f.date)}</span>
+        <span class="alias">${f.rows.named} ppl</span>
+        ${state}
+      </div>`;
+    }).join('')}`;
+}
+
+function openQueueFile(i){
+  const f=(S.queue||[])[i]; if(!f) return;
+  document.getElementById('imp-raw').value=f.text;
+  document.getElementById('imp-date').value=f.date;
+  S.parsed=f.rows;
+  paintParsed();
+  if(!f.rows.named) toast('No names in this one — it may not be a standup note');
+}
+
+function runParse(text){
+  S.parsed = parseNotes(text);
+  const d = S.parsed.detectedDate;
+  if(d){ const f=document.getElementById('imp-date'); if(f){ f.value=d; toast('Dated '+prettyDate(d)+' — change it if that is wrong'); } }
+  paintParsed();
+}
+
+function paintParsed(){
+  const box=document.getElementById('imp-rows'); if(!box) return;
+  const rows=S.parsed||[];
+  if(!rows.length){ box.innerHTML=`<div class="empty">Nothing recognised in that note. Try one person per line, like <b>Amp: deploy to UAT</b>.</div>`; document.getElementById('imp-actions').style.display='none'; return; }
+  const opts = extra => `<option value="">— choose a person —</option>` + S.roster.map(m=>`<option value="${m.id}" ${extra===m.id?'selected':''}>${esc(m.name)}${m.thai&&norm(m.thai)!==norm(m.name)?' ('+esc(m.thai)+')':''}${isFormer(m)?' — former':''}</option>`).join('');
+  box.innerHTML = rows.map((r,i)=>`
+    <div class="prow ${r.ambiguous&&!r.memberId?'ambig':''} ${!r.memberId&&!r.ambiguous?'unknown':''}">
+      <div class="prow-top">
+        <select data-assign="${i}">${opts(r.memberId)}</select>
+        ${r.ambiguous?'<span class="warn">Which Zeen?</span>':''}
+        ${!r.memberId&&!r.ambiguous?'<span class="warn">Unmatched</span>':''}
+        ${r.status==='blocked'?'<span class="tag block">Blocked</span>':r.status==='help'?'<span class="tag help">Help</span>':''}
+      </div>
+      <div class="prow-raw">${esc(r.items.join('\n'))}</div>
+      ${r.token?`<div class="note" style="margin-top:6px">Written as “${esc(r.token)}”</div>`:''}
+      ${r.helpFrom&&r.helpFrom.length?`<div class="note">Mentions: ${r.helpFrom.map(id=>esc((memberById(id)||{}).name||'')).join(', ')}</div>`:''}
+      ${r.token && !r.memberId && !r.ambiguous ? `<div class="row" style="margin-top:8px;gap:6px">
+        <button class="btn" data-newperson="${i}:active" style="padding:6px 11px;font-size:12.5px">Add “${esc(r.token)}” to the team</button>
+        <button class="btn" data-newperson="${i}:former" style="padding:6px 11px;font-size:12.5px">Add as former member</button>
+      </div>`:''}
+      ${r.mentionAmbiguous?`<div class="row" style="margin-top:8px;gap:6px">
+        <span class="warn">Names a “Zeen” —</span>
+        ${(AMBIGUOUS['zeen']||[]).filter(memberById).map(id=>`<button class="chip" data-mention="${i}:${id}" aria-pressed="${(r.helpFrom||[]).includes(id)}">${esc((memberById(id)||{}).name)}</button>`).join('')}
+      </div>`:''}
+    </div>`).join('');
+  const unresolved = rows.filter(r=>!r.memberId).length;
+  document.getElementById('imp-count').textContent = `${rows.length} block${rows.length===1?'':'s'}${unresolved?` · ${unresolved} still to assign`:' · all matched'}`;
+  document.getElementById('imp-actions').style.display='flex';
+}
+
+const SAMPLE = `20/07/2026
+พี่รวจ
+-แก้ bug watchman
+พี่ซีน
+-เก็บเอกสาร สกบ.
+-เก็บเอกสาร ISO
+แอม
+-Support สกบ.
+-Emergency Security การส่งจาก Gateway เข้าระบบ
+ปัน
+-K-sys พี่ซีน
+-Car booking ขึ้น Production หลัง 17.30
+-ถ่ายงานให้พี่เบียร์
+ก้อง
+-เอา watchman ขึ้นให้เพื่อให้แพททดสอบ
+ซีนน้อย
+-รายงานหมูให้เสร็จวันนี้
+Zeen
+-รอ feedback เรื่องจองรถ
+พี่ไข่
+-คุยกับ supplier เรื่องตั้งค่าการ call --> ต้องใช้ application care fit`;
+
+/* ---------- People ---------- */
+async function renderPeople(){
+  if(!S.personId) S.personId = S.roster.length?S.roster[0].id:null;
+  if(!S.personId){ view().innerHTML=`<div class="empty">Add people on the Team tab first.</div>`; return; }
+  view().innerHTML = `<h2>People</h2><div class="empty">Reading the log…</div>`;
+
+  (await store.all('standup:')).forEach(r=>{
+    const date=r.key.replace('standup:','');
+    if(!S.cache.has(date)) S.cache.set(date, normalizeDay(r.value));
+  });
+  const days=[...S.cache.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,45).map(x=>x[1]);
+  days.sort((a,b)=>b.date.localeCompare(a.date));
+
+  const m=memberById(S.personId);
+  const mine=days.map(d=>({date:d.date,e:d.entries[m.id]})).filter(x=>isCaptured(x.e));
+  const tasks=mine.reduce((n,x)=>n+(x.e.tasks?x.e.tasks.length:0),0);
+  const flagged=mine.filter(x=>entryFlag(x.e));
+  const partners={};
+  mine.forEach(x=>(x.e.tasks||[]).forEach(tk=>(tk.helpFrom||[]).forEach(id=>partners[id]=(partners[id]||0)+1)));
+  days.forEach(d=>Object.keys(d.entries||{}).forEach(id=>{
+    if(id===m.id) return;
+    (d.entries[id].tasks||[]).forEach(tk=>{ if((tk.helpFrom||[]).includes(m.id)) partners[id]=(partners[id]||0)+1; });
+  }));
+  const top=Object.entries(partners).sort((a,b)=>b[1]-a[1]).slice(0,4);
+
+  view().innerHTML = `
+    <h2>People</h2>
+    <div class="people-grid">
+      <aside class="rail">
+        <div class="rail-head"><b>Team</b><div class="rail-count">${S.roster.length}<i> people</i></div></div>
+        <ul class="roll" style="flex-direction:column;display:block">
+          ${S.roster.filter(x=>!isFormer(x)).map((x,i)=>`<li><button class="roll-item" data-person="${x.id}" aria-current="${x.id===S.personId}">
+            <span class="roll-num">${String(i+1).padStart(2,'0')}</span>
+            <span class="roll-name">${esc(x.name)}</span></button></li>`).join('')}
+          ${S.roster.some(isFormer)?`<li><div class="alias" style="padding:12px 10px 6px">FORMER</div></li>`:''}
+          ${S.roster.filter(isFormer).map(x=>`<li><button class="roll-item" data-person="${x.id}" aria-current="${x.id===S.personId}">
+            <span class="roll-num">·</span>
+            <span class="roll-name" style="color:var(--muted)">${esc(x.name)}</span></button></li>`).join('')}
+        </ul>
+      </aside>
+      <section>
+        <div class="panel" style="margin-bottom:18px">
+          <div class="speaker-head" style="border:0;padding:0;margin:0 0 16px">
+            <div class="mark" style="background:${colorOf(m.id)}">${esc(initials(m))}</div>
+            <div class="speaker-id">
+              <h3>${esc(m.name)} ${m.thai&&norm(m.thai)!==norm(m.name)?`<span style="color:var(--muted);font-weight:400">${esc(m.thai)}</span>`:''}</h3>
+              <div class="sub">${esc(m.role||'role not set')}${m.note?' · '+esc(m.note):''}</div>
+            </div>
+            ${isFormer(m)?'<span class="tag">Former member</span>':''}
+          </div>
+          <div class="stat-row" style="margin:0">
+            <div class="stat"><b>${mine.length}</b><span>Standups</span></div>
+            <div class="stat"><b>${tasks}</b><span>Tasks logged</span></div>
+            <div class="stat"><b>${flagged.length}</b><span>Days needing help</span></div>
+            <div class="stat"><b>${top.length?esc((memberById(top[0][0])||{}).name||'–'):'–'}</b><span>Works with most</span></div>
+          </div>
+          ${top.length>1?`<p class="note" style="margin-top:12px">Also paired with ${top.slice(1).map(t=>esc((memberById(t[0])||{}).name||'')).join(', ')}.</p>`:''}
+          ${(()=>{const c={};mine.forEach(x=>(x.e.tasks||[]).forEach(tk=>{const k=tk.p||'_none';c[k]=(c[k]||0)+1;}));
+            const ks=Object.keys(c).sort((a,b)=>c[b]-c[a]);
+            return ks.length?`<div class="chips" style="margin-top:14px">${ks.map(k=>`<span class="chip" style="cursor:default">${k==='_none'?'Untagged':esc(projectName(k))} · ${c[k]}</span>`).join('')}</div>`:'';})()}
+        </div>
+
+        <h2>Log · last ${days.length} recorded day${days.length===1?'':'s'}</h2>
+        ${mine.length?`<div class="daylog">${mine.map(x=>`
+          <div class="daylog-day ${entryFlag(x.e)?'has-flag':''}">
+            <div class="daylog-date">${esc(prettyDate(x.date))} ${entryFlag(x.e)==='blocked'?'<span class="tag block">Blocked</span>':entryFlag(x.e)==='help'?'<span class="tag help">Help</span>':x.e.awayType==='leave'?'<span class="tag">Leave</span>':x.e.awayType==='away'?`<span class="tag">Away${x.e.awayProject?' — '+esc(projectName(x.e.awayProject)):''}</span>`:''}</div>
+            ${x.e.tasks&&x.e.tasks.length?`<ul style="margin:0;padding-left:18px">${x.e.tasks.map(tk=>`<li style="font-size:14px;line-height:1.6">${esc(tk.t)}${tk.p?` <span class="ptag">${esc(projectName(tk.p))}</span>`:''}
+              ${tk.status==='blocked'?' <span class="tag block">Blocked</span>':tk.status==='help'?' <span class="tag help">Help</span>':''}
+              ${(tk.helpFrom||[]).length?`<div class="note" style="margin-top:2px">with ${tk.helpFrom.map(id=>esc((memberById(id)||{}).name||'')).filter(Boolean).join(', ')}</div>`:''}
+              ${tk.helpNote?`<div class="note" style="margin-top:2px">↳ ${esc(tk.helpNote)}</div>`:''}
+            </li>`).join('')}</ul>`:'<span class="note">No tasks noted</span>'}
+          </div>`).join('')}</div>`
+        :`<div class="empty">Nothing logged for ${esc(m.name)} yet.</div>`}
+      </section>
+    </div>`;
+}
+
+/* ---------- Team ---------- */
+function renderTeam(){
+  const rowFor = m => `
+    <div class="member-row ${isFormer(m)?'former':''}">
+      <div class="mark" style="background:${isFormer(m)?'#9AA8B4':colorOf(m.id)};width:36px;height:36px;font-size:13px">${esc(initials(m))}</div>
+      <div style="flex:1;min-width:0">
+        <div class="row" style="gap:8px;margin-bottom:8px">
+          <input type="text" value="${esc(m.name)}" data-edit="name" data-id="${m.id}" style="max-width:150px" aria-label="Name">
+          <input type="text" value="${esc(m.thai||'')}" data-edit="thai" data-id="${m.id}" placeholder="ชื่อเล่นไทย" style="max-width:130px" aria-label="Thai name">
+          <select data-edit="role" data-id="${m.id}" style="max-width:180px" aria-label="Role">
+            ${['','Full-stack developer','Tester','Project coordinator','DevOps','Software support','Sales','Marketing','Team lead','Intern'].map(r=>`<option ${r===(m.role||'')?'selected':''}>${r||'— role —'}</option>`).join('')}
+          </select>
+          <button class="btn quiet" data-toggleactive="${m.id}" style="color:${isFormer(m)?'var(--pine)':'var(--muted)'}">${isFormer(m)?'Bring back':'Mark as former'}</button>
+          <button class="btn quiet" data-remove="${m.id}">Remove</button>
+        </div>
+        <input type="text" value="${esc((m.aliases||[]).join(', '))}" data-edit="aliases" data-id="${m.id}" placeholder="other spellings, comma separated" aria-label="Aliases">
+        <input type="text" value="${esc(m.note||'')}" data-edit="note" data-id="${m.id}" placeholder="note — e.g. intern, finished May 2026" aria-label="Note" style="margin-top:6px">
+      </div>
+    </div>`;
+
+  const current = S.roster.filter(m=>!isFormer(m));
+  const former  = S.roster.filter(isFormer);
+
+  view().innerHTML = `
+    <h2>On the team · ${current.length}</h2>
+    <p class="lede">Names, nicknames and spellings the importer should recognise. Add every way you actually write someone down — Thai, English, with or without พี่. Order here is the roll-call order at 08:00.</p>
+    <div class="panel">
+      ${current.map(rowFor).join('') || '<div class="note">Nobody on the team yet.</div>'}
+      <div class="row" style="margin-top:16px">
+        <button class="btn primary" data-add="1">Add a person</button>
+      </div>
+    </div>
+
+    <h2>Former members · ${former.length}</h2>
+    <p class="lede">Interns and leavers. They stay out of the daily roll call, but their names still match when you import old notes, and their history stays readable on the People tab.</p>
+    <div class="panel">
+      ${former.map(rowFor).join('') || '<div class="note">No former members yet. Use <b>Mark as former</b> on anyone who has left.</div>'}
+    </div>
+
+    <h2>Your data</h2>
+    <div class="row">
+      <button class="btn" data-backup="1">Back up all data (.json)</button>
+      <label class="btn" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+        Restore from backup<input type="file" id="restore" accept="application/json" style="display:none">
+      </label>
+    </div>
+    <p class="note" style="margin-top:10px">${
+      store.mode==='account' ? 'Saved against your Claude account, privately — not shared with the team.' :
+      store.mode==='device'  ? 'Saved in this browser on this computer, privately. Another browser or another laptop starts empty. Download a backup weekly.' :
+      'Not being saved at all right now. Open a terminal in the folder holding this file, run <b>python3 -m http.server 8000</b>, then visit <b>http://localhost:8000/standup-log.html</b> — storage works there.'
+    } The backup file is how you move everything somewhere else.</p>`;
+}
+
+/* ---------- Sync ---------- */
+function renderSync(){
+  const mode=store.mode;
+  const status = mode==='cloud'
+    ? `<span class="tag ok">Shared</span> Signed in as <b>${esc(cloud.session.email||'')}</b>. Every device that signs in sees this same log.`
+    : cloud.configured()
+      ? `<span class="tag help">Not signed in</span> The project is set up but this device is not signed in, so it is still saving locally only.`
+      : `<span class="tag">Local only</span> This device keeps its own copy. Connect a Supabase project to share one log across your laptop and phone.`;
+
+  view().innerHTML = `
+    <h2>Sync</h2>
+    <p class="lede">${status}</p>
+
+    <div class="panel" style="margin-bottom:18px">
+      <div class="field">
+        <label for="sb-url">Supabase project URL</label>
+        <input type="text" id="sb-url" placeholder="https://xxxxxxxx.supabase.co" value="${esc(cloud.cfg?cloud.cfg.url:'')}">
+      </div>
+      <div class="field">
+        <label for="sb-key">Anon public key</label>
+        <input type="text" id="sb-key" placeholder="eyJhbGciOi..." value="${esc(cloud.cfg?cloud.cfg.key:'')}">
+      </div>
+      <div class="row">
+        <button class="btn primary" data-sbsave="1">Save project</button>
+        ${cloud.configured()?'<button class="btn quiet" data-sbforget="1">Forget project</button>':''}
+      </div>
+      <p class="note" style="margin-top:10px">Both come from your Supabase dashboard under Project Settings → API. The anon key is meant to be public — the database policies decide who may read, and only signed-in accounts can.</p>
+    </div>
+
+    ${cloud.configured() ? (cloud.ready() ? `
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <div><b>${esc(cloud.session.email||'')}</b><div class="note">Signed in on this device</div></div>
+        <button class="btn" data-sbout="1">Sign out</button>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" data-sbpush="1">Upload this device's local data</button>
+        <button class="btn quiet" data-sbtest="1">Test connection</button>
+      </div>
+      <p class="note" style="margin-top:10px">Upload copies anything saved on this device up to the shared log. Run it once, from the laptop that has your history. Where the same day exists in both, this device wins.</p>
+    </div>` : `
+    <div class="panel">
+      <div class="field">
+        <label for="sb-email">Email</label>
+        <input type="text" id="sb-email" placeholder="you@company.com" autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="sb-pass">Password</label>
+        <input type="password" id="sb-pass" autocomplete="current-password">
+      </div>
+      <div class="row"><button class="btn primary" data-sbin="1">Sign in</button></div>
+      <p class="note" style="margin-top:10px">Accounts are created by you in the Supabase dashboard under Authentication → Users. Nobody can sign themselves up.</p>
+      <div class="note" id="sb-msg" style="margin-top:8px;color:var(--flag)"></div>
+    </div>`) : ''}
+
+    <h2>How it behaves</h2>
+    <div class="panel">
+      <p class="note" style="margin:0 0 8px">Reads and writes go straight to Supabase, and a copy stays on the device so a dropped connection doesn't lose the morning's notes.</p>
+      <p class="note" style="margin:0 0 8px">Two people editing the same day at the same time: last save wins for that day. With one note-taker at 08:00 that never comes up.</p>
+      <p class="note" style="margin:0">The backup file on the Team tab still works and is worth keeping — it's the only copy that survives you losing access to the Supabase project.</p>
+    </div>`;
+}
+
+async function pushLocal(){
+  if(!LS){ toast('Nothing stored on this device'); return; }
+  const keys = Object.keys(LS).filter(k=>k.startsWith('standup:')||k==='roster:v1'||k===K_PROJ||k==='projects:version'||k==='migrated:interns');
+  let n=0;
+  for(const k of keys){
+    const v=lsGet(k); if(v===null) continue;
+    try{ await cloud.set(k,v); n++; }catch(e){ console.error(e); }
+  }
+  toast(`Uploaded ${n} record${n===1?'':'s'}`);
+  await reloadEverything();
+}
+
+async function reloadEverything(){
+  S.cache.clear();
+  S.projects = await store.get(K_PROJ) || S.projects;
+  S.roster   = await store.get(K_ROSTER) || S.roster;
+  S.day      = await loadDay(S.date);
+  showStorageMode();
+  render();
+}
+
+/* ---------- Projects ---------- */
+function renderProjects(){
+  view().innerHTML = `
+    <h2>Projects · ${S.projects.length}</h2>
+    <p class="lede">Each task gets tagged with a project automatically, by looking for these keywords in what was said. Add the words your team actually uses — Thai or English — and the tagging gets better. The longest keyword wins, so <b>iso certified</b> beats <b>iso</b>.</p>
+    <div class="panel">
+      ${S.projects.map(pr=>`
+        <div class="member-row">
+          <div style="flex:1;min-width:0">
+            <div class="row" style="gap:8px;margin-bottom:8px">
+              <input type="text" value="${esc(pr.name)}" data-projedit="name" data-pid="${pr.id}" style="max-width:280px" aria-label="Project name">
+              <button class="btn quiet" data-projremove="${pr.id}">Remove</button>
+            </div>
+            <input type="text" value="${esc((pr.keywords||[]).join(', '))}" data-projedit="keywords" data-pid="${pr.id}" placeholder="keywords, comma separated — leave empty to tag only by hand" aria-label="Keywords">
+          </div>
+        </div>`).join('')}
+      <div class="row" style="margin-top:16px">
+        <button class="btn primary" data-projadd="1">Add a project</button>
+      </div>
+    </div>
+
+    <h2>Try it</h2>
+    <p class="lede">Paste any task line to see which project it would be filed under.</p>
+    <div class="panel">
+      <input type="text" id="projtest" placeholder="e.g. เก็บเอกสาร ISO Certified / test watchman / k-sys ต่อ">
+      <div id="projtestout" class="note" style="margin-top:10px">—</div>
+    </div>
+
+    <h2>Retag old notes</h2>
+    <p class="lede">Runs the current keywords over every task already saved. Tags you set by hand stay as they are.</p>
+    <div class="row"><button class="btn" data-retag="1">Retag untagged tasks</button></div>`;
+
+  const box=document.getElementById('projtest');
+  box.addEventListener('input', ()=>{
+    const id=detectProject(box.value);
+    document.getElementById('projtestout').innerHTML = box.value.trim()
+      ? (id ? `→ <b>${esc(projectName(id))}</b>` : '→ no match, would stay untagged')
+      : '—';
+  });
+}
+
+async function retagAll(){
+  (await store.all('standup:')).forEach(r=>{
+    const date=r.key.replace('standup:','');
+    if(!S.cache.has(date)) S.cache.set(date, normalizeDay(r.value));
+  });
+  const dates=[...S.cache.keys()];
+  let n=0;
+  for(const date of dates){
+    const d=normalizeDay(S.cache.get(date) || blankDay(date));
+    let touched=false;
+    Object.values(d.entries||{}).forEach(e=>(e.tasks||[]).forEach(x=>{
+      if(!x.p){ const g=detectProject(x.t); if(g){ x.p=g; n++; touched=true; } }
+    }));
+    if(touched){ S.cache.set(date,d); await store.set(K_DAY(date), d); }
+  }
+  S.day=await loadDay(S.date);
+  toast(n?`Tagged ${n} task${n===1?'':'s'}`:'Nothing new to tag');
+}
+
+/* ---------- Report ---------- */
+async function ensureAllDaysCached(){
+  (await store.all('standup:')).forEach(r=>{
+    const date=r.key.replace('standup:','');
+    if(!S.cache.has(date)) S.cache.set(date, normalizeDay(r.value));
+  });
+}
+
+/* counts DAYS, not tasks — a project mentioned three times in one day is one day.
+   also rolls up attendance, task volume, and blocked/help days per person. */
+function computeReport(fromDate, toDate){
+  const days=[...S.cache.entries()]
+    .filter(([date])=>(!fromDate||date>=fromDate)&&(!toDate||date<=toDate));
+  const matrix={}, memberTotals={};
+  const activeDates=new Set();
+  const ensure=id=>{
+    if(!matrix[id]) matrix[id]={};
+    if(!memberTotals[id]) memberTotals[id]={daysReported:0,tasksLogged:0,blockedDays:0,helpDays:0,awayDays:0,leaveDays:0,projects:new Set()};
+    return memberTotals[id];
+  };
+  S.roster.forEach(m=>ensure(m.id));
+  days.forEach(([date,d])=>{
+    Object.entries(d.entries||{}).forEach(([id,e])=>{
+      if(!isCaptured(e)) return;
+      activeDates.add(date);
+      const mt=ensure(id);
+      mt.daysReported++;
+      if(e.awayType==='away') mt.awayDays++;
+      else if(e.awayType==='leave') mt.leaveDays++;
+      const flag=entryFlag(e);
+      if(flag==='blocked') mt.blockedDays++;
+      else if(flag==='help') mt.helpDays++;
+      const seenToday=new Set();
+      (e.tasks||[]).forEach(tk=>{
+        mt.tasksLogged++;
+        const key=tk.p||'_none';
+        if(!seenToday.has(key)){
+          seenToday.add(key);
+          matrix[id][key]=(matrix[id][key]||0)+1;
+          mt.projects.add(key);
+        }
+      });
+    });
+  });
+  const projectTotals={};
+  Object.values(matrix).forEach(row=>Object.entries(row).forEach(([k,v])=>{ projectTotals[k]=(projectTotals[k]||0)+v; }));
+  return {matrix, memberTotals, projectTotals, dayCount:activeDates.size};
+}
+
+function csvField(v){
+  v=String(v==null?'':v);
+  return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v;
+}
+
+function buildReportCSV(){
+  const {matrix, memberTotals, projectTotals, dayCount}=computeReport(S.reportFrom, S.reportTo);
+  const projIds=Object.keys(projectTotals).sort((a,b)=>projectTotals[b]-projectTotals[a]);
+  const header=['Person','Days reported', ...projIds.map(k=>k==='_none'?'Untagged':projectName(k)),
+    'Blocked days','Needs-help days','Away days','Leave days','Tasks logged','Projects touched'];
+  const lines=[header.map(csvField).join(',')];
+  S.roster.forEach(m=>{
+    const mt=memberTotals[m.id]||{daysReported:0,tasksLogged:0,blockedDays:0,helpDays:0,awayDays:0,leaveDays:0,projects:new Set()};
+    const row=matrix[m.id]||{};
+    const line=[m.name, mt.daysReported, ...projIds.map(k=>row[k]||0),
+      mt.blockedDays||0, mt.helpDays||0, mt.awayDays||0, mt.leaveDays||0, mt.tasksLogged||0, mt.projects?mt.projects.size:0];
+    lines.push(line.map(csvField).join(','));
+  });
+  return lines.join('\n');
+}
+
+async function renderReport(){
+  view().innerHTML = `<h2>Report</h2><div class="empty">Reading the log…</div>`;
+  await ensureAllDaysCached();
+  if(!S.reportFrom){
+    const to=todayISO();
+    const d=new Date(); d.setDate(d.getDate()-29);
+    S.reportFrom=d.toISOString().slice(0,10);
+    S.reportTo=to;
+  }
+  paintReport();
+}
+
+function paintReport(){
+  const {matrix, memberTotals, projectTotals, dayCount}=computeReport(S.reportFrom, S.reportTo);
+  const projIds=Object.keys(projectTotals).sort((a,b)=>projectTotals[b]-projectTotals[a]);
+  const projLabel=k=>k==='_none'?'Untagged':esc(projectName(k));
+  const byProject = S.reportView==='project';
+
+  let matrixSection;
+  if(byProject){
+    matrixSection = `
+      <h2>Days per person, by project · ${dayCount} day${dayCount===1?'':'s'} in range</h2>
+      <div class="digest">
+        ${projIds.length ? projIds.map(k=>{
+          const rows=S.roster.map(m=>({m, days:(matrix[m.id]&&matrix[m.id][k])||0})).filter(r=>r.days>0).sort((a,b)=>b.days-a.days);
+          return `<div class="line">
+            <div class="line-name">${projLabel(k)}</div>
+            <div class="line-body">
+              ${rows.length?`<ul>${rows.map(r=>`<li><b>${esc(r.m.name)}</b>${isFormer(r.m)?' <span class="note">(former)</span>':''} — ${r.days} day${r.days===1?'':'s'}</li>`).join('')}</ul>`:'<span class="note">Nobody logged this project in range.</span>'}
+            </div>
+            <div><span class="tag">${projectTotals[k]} total</span></div>
+          </div>`;
+        }).join('') : '<div class="empty">No projects logged in this range.</div>'}
+      </div>`;
+  }else{
+    const bodyRows=S.roster.map(m=>{
+      const mt=memberTotals[m.id]||{daysReported:0,blockedDays:0,helpDays:0,awayDays:0,leaveDays:0};
+      const row=matrix[m.id]||{};
+      return `<tr>
+        <td>${esc(m.name)}${isFormer(m)?' <span class="note">(former)</span>':''}</td>
+        <td>${mt.daysReported||''}</td>
+        ${projIds.map(k=>`<td>${row[k]||''}</td>`).join('')}
+        <td>${mt.blockedDays||''}</td>
+        <td>${mt.helpDays||''}</td>
+        <td>${mt.awayDays||''}</td>
+        <td>${mt.leaveDays||''}</td>
+      </tr>`;
+    }).join('');
+    const totalsRow=`<tr class="rpt-total">
+      <td>Total</td><td>${dayCount}</td>
+      ${projIds.map(k=>`<td>${projectTotals[k]}</td>`).join('')}
+      <td colspan="4"></td>
+    </tr>`;
+    matrixSection = `
+      <h2>Days per project, by person · ${dayCount} day${dayCount===1?'':'s'} in range</h2>
+      <div class="rpt-wrap">
+        <table class="rpt-table">
+          <thead><tr>
+            <th>Person</th><th>Days reported</th>
+            ${projIds.map(k=>`<th>${projLabel(k)}</th>`).join('')}
+            <th>Blocked</th><th>Needs help</th><th>Away</th><th>Leave</th>
+          </tr></thead>
+          <tbody>${bodyRows}${totalsRow}</tbody>
+        </table>
+      </div>`;
+  }
+
+  view().innerHTML = `
+    <h2>Report</h2>
+    <p class="lede">Counts days, not tasks — working on the same project three times in one day still counts once. Pick a range to look at a sprint, a month, or everything logged.</p>
+
+    <div class="panel" style="margin-bottom:18px">
+      <div class="row">
+        <div class="field" style="margin:0"><label for="rpt-from">From</label><input type="date" id="rpt-from" value="${S.reportFrom}"></div>
+        <div class="field" style="margin:0"><label for="rpt-to">To</label><input type="date" id="rpt-to" value="${S.reportTo}"></div>
+        <button class="btn" data-rptrange="7">Last 7 days</button>
+        <button class="btn" data-rptrange="30">Last 30 days</button>
+        <button class="btn" data-rptrange="all">All time</button>
+        <button class="btn primary" data-rptcsv="1" style="margin-left:auto">Download CSV</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ${byProject?'':'primary'}" data-rptview="person">By person</button>
+        <button class="btn ${byProject?'primary':''}" data-rptview="project">By project</button>
+      </div>
+    </div>
+
+    ${matrixSection}
+
+    <h2>Other measures</h2>
+    <div class="digest">
+      ${S.roster.map(m=>{
+        const mt=memberTotals[m.id]||{daysReported:0,tasksLogged:0,blockedDays:0,projects:new Set()};
+        const rate=dayCount?Math.round((mt.daysReported||0)/dayCount*100):0;
+        const avgTasks=mt.daysReported?(mt.tasksLogged/mt.daysReported).toFixed(1):'0.0';
+        const projCount=mt.projects?mt.projects.size:0;
+        return `<div class="line">
+          <div class="line-name">${esc(m.name)}</div>
+          <div class="line-body"><span class="note">Reported ${mt.daysReported||0}/${dayCount} days (${rate}%) · ${mt.tasksLogged||0} tasks logged · avg ${avgTasks}/day · ${projCount} project${projCount===1?'':'s'} touched</span></div>
+          <div>${mt.blockedDays?`<span class="tag block">${mt.blockedDays} blocked</span>`:''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <p class="note" style="margin-top:10px">Reported-day rate and task volume are activity measures, not quality ones — a full picture of KPIs still needs your own read on what got shipped. Use the CSV to bring these numbers into whatever review process you already run.</p>`;
+
+  document.getElementById('rpt-from').addEventListener('change', e=>{ S.reportFrom=e.target.value; paintReport(); });
+  document.getElementById('rpt-to').addEventListener('change', e=>{ S.reportTo=e.target.value; paintReport(); });
+}
+
+/* ============================================================
+   Events
+   ============================================================ */
+document.getElementById('tabs').addEventListener('click', e=>{
+  const b=e.target.closest('.tab'); if(!b) return;
+  S.tab=b.dataset.tab; render();
+});
+document.getElementById('thedate').addEventListener('change', async e=>{
+  S.date=e.target.value||todayISO(); S._focused=null;
+  S.day=await loadDay(S.date);
+  render();
+});
+
+document.addEventListener('click', async e=>{
+  const t=e.target;
+
+  const go=t.closest('[data-goto]');
+  if(go){ S.active=go.dataset.goto; renderStandup(); return; }
+
+  const per=t.closest('[data-person]');
+  if(per){ S.personId=per.dataset.person; renderPeople(); return; }
+
+  const awt=t.closest('[data-awaytype]');
+  if(awt){
+    const en=entryOf(S.active); const kind=awt.dataset.awaytype;
+    en.awayType = en.awayType===kind ? '' : kind;
+    if(en.awayType!=='away') en.awayProject='';
+    en.touched=true; queueSave(); renderStandup(); return;
+  }
+
+  const ts=t.closest('[data-taskstatus]');
+  if(ts){
+    const [i,status]=ts.dataset.taskstatus.split(':');
+    const en=entryOf(S.active); const tk=en.tasks[+i]; if(!tk) return;
+    tk.status = tk.status===status ? '' : status;
+    en.touched=true; queueSave(); paintTaskDetails(); return;
+  }
+
+  const th=t.closest('[data-taskhelp]');
+  if(th){
+    const [i,id]=th.dataset.taskhelp.split(':');
+    const en=entryOf(S.active); const tk=en.tasks[+i]; if(!tk) return;
+    tk.helpFrom=tk.helpFrom||[];
+    tk.helpFrom.includes(id) ? tk.helpFrom=tk.helpFrom.filter(x=>x!==id) : tk.helpFrom.push(id);
+    en.touched=true; queueSave();
+    th.setAttribute('aria-pressed', String(tk.helpFrom.includes(id))); return;
+  }
+
+  if(t.closest('[data-clear]')){
+    delete S.day.entries[S.active]; queueSave(); renderStandup(); toast('Cleared'); return;
+  }
+
+  if(t.closest('[data-parse]')){ runParse(document.getElementById('imp-raw').value); return; }
+  if(t.closest('[data-sample]')){
+    document.getElementById('imp-raw').value=SAMPLE; runParse(SAMPLE); return;
+  }
+  const of_=t.closest('[data-openfile]');
+  if(of_){ openQueueFile(+of_.dataset.openfile); return; }
+  if(t.closest('[data-queueall]')){ importQueue(); return; }
+  if(t.closest('[data-queueclear]')){ S.queue=[]; paintQueue(); return; }
+
+  const np=t.closest('[data-newperson]');
+  if(np){
+    const [ix,kind]=np.dataset.newperson.split(':');
+    const i=+ix, r=S.parsed[i];
+    const name=(prompt('Add this person as:', r.token)||'').trim();
+    if(!name) return;
+    const id='m'+Date.now().toString(36);
+    const thai=/[ก-๙]/.test(name)?name:'';
+    const former = kind==='former';
+    S.roster.push({id, name, thai, role: former?'Intern':'', active: !former,
+      note: former?'Former member — kept for old notes':'',
+      aliases:[r.token].filter(a=>a&&a!==name)});
+    await saveRoster();
+    (S.queue||[]).forEach(f=>f.rows.forEach(row=>{
+      if(!row.memberId && norm(row.token)===norm(r.token)){ row.memberId=id; row.unknown=false; }
+    }));
+    r.memberId=id; r.unknown=false;
+    S.parsed.forEach(row=>{ if(!row.memberId && norm(row.token)===norm(r.token)){ row.memberId=id; row.unknown=false; } });
+    paintParsed(); paintQueue();
+    toast(former ? `${name} added as a former member` : `${name} added to the roll call`);
+    return;
+  }
+
+  const mn=t.closest('[data-mention]');
+  if(mn){
+    const [i,id]=mn.dataset.mention.split(':'); const r=S.parsed[+i];
+    r.helpFrom=r.helpFrom||[];
+    r.helpFrom.includes(id) ? r.helpFrom=r.helpFrom.filter(x=>x!==id) : r.helpFrom.push(id);
+    paintParsed(); return;
+  }
+  const ap=t.closest('[data-apply]');
+  if(ap){
+    if((S.parsed||[]).some(r=>!r.memberId) && !confirm('Some blocks still have no person assigned. They will be skipped. Continue?')) return;
+    applyImport(ap.dataset.apply); return;
+  }
+
+  if(t.closest('[data-copy]')){
+    const txt=buildMarkdown(S.date,S.day);
+    try{ await navigator.clipboard.writeText(txt); toast('Copied'); }
+    catch(err){ const p=document.getElementById('mdout'); const r=document.createRange(); r.selectNodeContents(p); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Select and copy'); }
+    return;
+  }
+  if(t.closest('[data-download]')){
+    download(`standup-${S.date}.md`, buildMarkdown(S.date,S.day), 'text/markdown'); return;
+  }
+  if(t.closest('[data-backup]')){
+    const days={};
+    (await store.all('standup:')).forEach(r=>{ days[r.key]=r.value; });
+    download(`standup-backup-${todayISO()}.json`, JSON.stringify({roster:S.roster,projects:S.projects,days},null,2), 'application/json');
+    toast('Backup downloaded'); return;
+  }
+
+  if(t.closest('[data-sbsave]')){
+    const url=document.getElementById('sb-url').value.trim();
+    const key=document.getElementById('sb-key').value.trim();
+    if(!/^https:\/\/.+/.test(url) && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(url)){
+      toast('The URL should start with https://'); return; }
+    if(key.length<20){ toast('That key looks too short'); return; }
+    cloud.saveCfg(url,key); toast('Project saved — now sign in'); renderSync(); return;
+  }
+  if(t.closest('[data-sbforget]')){
+    if(!confirm('Forget this Supabase project on this device? Data already in the cloud is untouched.')) return;
+    cloud.clear(); await reloadEverything(); S.tab='sync'; render(); return;
+  }
+  if(t.closest('[data-sbin]')){
+    const email=document.getElementById('sb-email').value.trim();
+    const pass=document.getElementById('sb-pass').value;
+    const msg=document.getElementById('sb-msg');
+    msg.textContent='Signing in…';
+    const ok = await cloud.signIn(email, pass).catch(()=>false);
+    if(!ok){ msg.textContent = cloud.lastError || 'Could not sign in'; return; }
+    toast('Signed in'); await reloadEverything(); S.tab='sync'; render(); return;
+  }
+  if(t.closest('[data-sbout]')){ cloud.signOut(); await reloadEverything(); S.tab='sync'; render(); return; }
+  if(t.closest('[data-sbpush]')){
+    if(!confirm("Upload this device's data to the shared log? Days that exist in both are replaced by this device's copy.")) return;
+    await pushLocal(); return;
+  }
+  if(t.closest('[data-sbtest]')){
+    try{ const rows=await cloud.all('standup:'); toast(`Connected · ${rows.length} day${rows.length===1?'':'s'} in the shared log`); }
+    catch(e){ toast('Could not reach the table — check the SQL ran'); }
+    return;
+  }
+
+  if(t.closest('[data-projadd]')){
+    const name=(prompt('Project name:')||'').trim();
+    if(!name) return;
+    S.projects.splice(Math.max(0,S.projects.length-1),0,{id:'p'+Date.now().toString(36),name,keywords:[]});
+    await saveProjects(); renderProjects(); return;
+  }
+  const prm=t.closest('[data-projremove]');
+  if(prm){
+    const pr=projectById(prm.dataset.projremove);
+    if(pr && confirm(`Remove ${pr.name}? Tasks already tagged with it keep the tag until you change them.`)){
+      S.projects=S.projects.filter(x=>x.id!==pr.id); await saveProjects(); renderProjects();
+    }
+    return;
+  }
+  if(t.closest('[data-retag]')){ await retagAll(); return; }
+
+  const rv=t.closest('[data-rptview]');
+  if(rv){ S.reportView = rv.dataset.rptview; paintReport(); return; }
+
+  const rr=t.closest('[data-rptrange]');
+  if(rr){
+    const kind=rr.dataset.rptrange;
+    if(kind==='all'){
+      const dates=[...S.cache.keys()].sort();
+      S.reportFrom = dates.length?dates[0]:todayISO();
+    }else{
+      const d=new Date(); d.setDate(d.getDate()-(+kind-1));
+      S.reportFrom = d.toISOString().slice(0,10);
+    }
+    S.reportTo = todayISO();
+    paintReport(); return;
+  }
+  if(t.closest('[data-rptcsv]')){
+    download(`standup-report-${S.reportFrom}_to_${S.reportTo}.csv`, buildReportCSV(), 'text/csv');
+    return;
+  }
+
+  if(t.closest('[data-add]')){
+    const id='m'+Date.now().toString(36);
+    S.roster.push({id,name:'New person',thai:'',role:'',aliases:[]});
+    await saveRoster(); renderTeam(); return;
+  }
+  const ta_=t.closest('[data-toggleactive]');
+  if(ta_){
+    const m=memberById(ta_.dataset.toggleactive);
+    if(m){ m.active = isFormer(m) ? true : false; await saveRoster(); renderTeam();
+      toast(isFormer(m) ? `${m.name} moved to former members` : `${m.name} is back on the roll call`); }
+    return;
+  }
+
+  const rm=t.closest('[data-remove]');
+  if(rm){
+    const m=memberById(rm.dataset.remove);
+    if(m && confirm(`Remove ${m.name} from the roster? Past notes stay in the log.`)){
+      S.roster=S.roster.filter(x=>x.id!==m.id); await saveRoster(); renderTeam();
+    }
+    return;
+  }
+});
+
+document.addEventListener('change', async e=>{
+  const as=e.target.closest('[data-assign]');
+  if(as){
+    const i=+as.dataset.assign; const r=S.parsed[i];
+    r.memberId=as.value; r.ambiguous=false;
+    r.helpFrom=mentionsIn(r.items.join(' '), r.memberId).ids;
+    paintParsed(); return;
+  }
+  const tp=e.target.closest('[data-taskproj]');
+  if(tp){
+    const en=entryOf(S.active); const i=+tp.dataset.taskproj;
+    if(en.tasks[i]){ en.tasks[i].p=tp.value; en.touched=true; queueSave(); }
+    tp.classList.toggle('set', !!tp.value);
+    return;
+  }
+  const pe=e.target.closest('[data-projedit]');
+  if(pe){
+    const pr=projectById(pe.dataset.pid); if(!pr) return;
+    if(pe.dataset.projedit==='keywords') pr.keywords=pe.value.split(',').map(x=>x.trim()).filter(Boolean);
+    else pr.name=pe.value.trim();
+    await saveProjects(); return;
+  }
+  const ed=e.target.closest('[data-edit]');
+  if(ed){
+    const m=memberById(ed.dataset.id); if(!m) return;
+    const f=ed.dataset.edit, v=ed.value;
+    if(f==='aliases') m.aliases=v.split(',').map(s=>s.trim()).filter(Boolean);
+    else if(f==='role') m[f]=v.startsWith('—')?'':v;
+    else m[f]=v.trim();
+    await saveRoster(); return;
+  }
+  if(e.target.id==='restore'){
+    const file=e.target.files[0]; if(!file) return;
+    try{
+      const data=JSON.parse(await file.text());
+      if(data.roster){ S.roster=data.roster; await saveRoster(); }
+      if(data.projects){ S.projects=data.projects; await saveProjects(); }
+      if(data.days){ for(const k in data.days){ await store.set(k,data.days[k]); S.cache.set(k.replace('standup:',''),data.days[k]); } }
+      S.day=await loadDay(S.date);
+      toast('Backup restored'); render();
+    }catch(err){ toast('That file could not be read'); }
+  }
+});
+
+function download(name, text, type){
+  const b=new Blob([text],{type}); const u=URL.createObjectURL(b);
+  const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+
+function showStorageMode(){
+  const bar=document.getElementById('storagebar'), txt=document.getElementById('storagebar-text');
+  if(store.mode==='cloud'){
+    bar.hidden=false; bar.classList.add('ok');
+    txt.innerHTML=`Shared log — signed in as <b>${esc(cloud.session.email||'')}</b>. Your laptop and phone see the same notes.`;
+    setTimeout(()=>{bar.hidden=true;}, 7000);
+    return;
+  }
+  if(store.mode==='memory'){
+    bar.hidden=false; bar.classList.remove('ok');
+    txt.innerHTML='<b>Nothing is being saved.</b> This browser is blocking storage for a file opened straight from disk, so a refresh clears the day. Serve the file over http (see the Team tab) or use Chrome, then this bar turns green.';
+  }else if(store.mode==='device'){
+    bar.hidden=false; bar.classList.add('ok');
+    txt.innerHTML='Saved on this device, in this browser. Back up from the Team tab now and then — clearing site data wipes it.';
+    setTimeout(()=>{bar.hidden=true;}, 9000);
+  }else{ bar.hidden=true; }
+}
+
+/* ---------- boot ---------- */
+(async function init(){
+  cloud.load();
+  S.projects = await store.get(K_PROJ);
+  if(!S.projects || !S.projects.length){
+    S.projects = PROJECTS.map(p=>({...p}));
+    await saveProjects();
+  }else if(await store.get(PROJ_VERSION_KEY) !== PROJ_VERSION){
+    /* merge: add projects that are new, union keywords onto ones already there,
+       never drop a keyword or a project the user added themselves */
+    PROJECTS.forEach(seed=>{
+      const mine = S.projects.find(x=>x.id===seed.id);
+      if(!mine){
+        const at = S.projects.findIndex(x=>x.id==='other');
+        S.projects.splice(at<0?S.projects.length:at, 0, {...seed});
+      }else{
+        mine.keywords = [...new Set((mine.keywords||[]).concat(seed.keywords||[]))];
+      }
+    });
+    await saveProjects();
+    await store.set(PROJ_VERSION_KEY, PROJ_VERSION);
+    S._retagOnBoot = true;
+  }
+  S.roster = await store.get(K_ROSTER);
+  if(!S.roster || !S.roster.length){
+    S.roster = SEED.map(m=>({...m}));
+    await saveRoster();
+  }else if(!(await store.get('migrated:interns'))){
+    SEED.filter(m=>m.active===false).forEach(m=>{
+      if(!S.roster.some(x=>x.id===m.id || norm(x.name)===norm(m.name))) S.roster.push({...m});
+    });
+    await saveRoster();
+    await store.set('migrated:interns', true);
+  }
+  document.getElementById('thedate').value = S.date;
+  S.day = await loadDay(S.date);
+  S.active = S.roster[0] && S.roster[0].id;
+  showStorageMode();
+  render();
+  if(S._retagOnBoot){ S._retagOnBoot=false; await retagAll(); render(); }
+})();
+</script>
